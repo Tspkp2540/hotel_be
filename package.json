@@ -1,0 +1,44 @@
+{
+  "name": "booking-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "scripts": {
+    "docs:generate": "node scripts/generate-openapi.mjs",
+    "docs:check": "node scripts/generate-openapi.mjs --check && node scripts/validate-openapi.mjs",
+    "dev": "tsx --env-file=.env src/server.ts",
+    "build": "tsc",
+    "start": "node --env-file=.env dist/server.js",
+    "test": "vitest run",
+    "test:mutation": "node scripts/run-mutations.mjs",
+    "test:coverage": "npm run test:integration",
+    "test:integration": "npm run docs:check && npm run build && node scripts/test-integration.mjs",
+    "test:ci-guards": "node scripts/check-ci-guards.mjs",
+    "test:classifier": "node --test scripts/mutation-results.test.mjs",
+    "test:db": "node database/scripts/test.mjs"
+  },
+  "dependencies": {
+    "@fastify/cookie": "^11.1.5",
+    "@fastify/cors": "^11.4.1",
+    "argon2": "^0.45.2",
+    "fastify": "^5.12.8",
+    "pg": "^8.23.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@apidevtools/swagger-parser": "^12.1.0",
+    "@types/node": "^26.6.6",
+    "@types/pg": "^8.23.1",
+    "@vitest/coverage-v8": "^5.1.0",
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
+    "openapi-types": "^12.1.3",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.6",
+    "vitest": "^5.1.0"
+  }
+}

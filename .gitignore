@@ -1,0 +1,14 @@
+node_modules/
+dist/
+coverage/
+.env
+.env.*
+!.env.example
+*.log
+test-results/
+playwright-report/
+.mutation-work/
+mutation-report/
+.ci-work/
+ci-report/
+backend-source/

@@ -1,0 +1,88 @@
+name: Quality
+'on':
+  pull_request: null
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch: null
+permissions:
+  contents: read
+concurrency:
+  group: quality-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+defaults:
+  run:
+    shell: bash
+env:
+  CI: 'true'
+  NODE_VERSION: 22.18.0
+jobs:
+  workflow:
+    name: Workflow validation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - name: Validate GitHub Actions configuration
+        env:
+          ACTIONLINT_VERSION: 1.7.12
+        run: |
+          archive="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          curl --fail --silent --show-error --location --retry 3 -o "$archive" "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/${archive}"
+          curl --fail --silent --show-error --location --retry 3 -o checksums.txt "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_checksums.txt"
+          sha256sum --check --ignore-missing checksums.txt
+          tar -xzf "$archive" actionlint
+          ./actionlint -color .github/workflows/ci.yml
+  backend:
+    name: Backend quality
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - name: Verify focused-test guards
+        run: npm run test:ci-guards
+      - name: Check database constraints and concurrency
+        run: npm run test:db
+      - name: Check OpenAPI, build, HTTP and PostgreSQL coverage
+        run: npm run test:integration
+      - name: Verify mutation result classifier
+        run: npm run test:classifier
+      - name: Check backend mutation gates
+        run: npm run test:mutation
+      - name: Upload backend reports
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: backend-reports
+          path: |
+            coverage/
+            mutation-report/
+          retention-days: 7
+          if-no-files-found: warn
+  ci:
+    name: CI required
+    if: always()
+    needs:
+      - workflow
+      - backend
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Require all quality jobs to pass
+        env:
+          WORKFLOW: ${{ needs.workflow.result }}
+          QUALITY: ${{ needs.backend.result }}
+        run: |
+          test "$WORKFLOW" = success
+          test "$QUALITY" = success
