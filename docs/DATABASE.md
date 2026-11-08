@@ -250,7 +250,7 @@ Apply 001 → 002 → 003 → seed สำหรับ DB ใหม่ ส่ว�
 
 Seed ห้องตัวอย่าง 5 ห้อง: บ้านพักหลัก, ห้องสวน, ห้องระเบียง, ห้องแสงเช้า และห้องมุมสงบ UUID ตามลำดับคือ 7c71298a-ef46-457c-ab5e-9edb238a54e5 ถึง 7c71298a-ef46-457c-ab5e-9edb238a54e9 ใช้ ON CONFLICT(id) DO NOTHING ไม่เพิ่มห้องซ้ำหรือเปิด inactive room กลับเอง ไม่มี seed users/passwords/bookings
 
-Migration role ต้อง provision btree_gist ได้ Runtime roles และ production ledger/checksum/locking จัดในขั้นส่งมอบ
+Migration role ต้อง provision btree_gist ได้ Runtime-role provisioning และ production ledger/checksum/locking เป็นงาน production ที่ยังไม่ได้จัดทำ
 
 ## การตรวจ
 

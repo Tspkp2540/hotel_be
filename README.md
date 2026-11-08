@@ -1,6 +1,8 @@
 # Booking Backend
 
-Node.js + TypeScript + Fastify + PostgreSQL 17.6 ระบบ auth, calendar, booking และ idempotent recovery ดู [API](docs/API.md) / [OpenAPI](openapi.json)
+Node.js + TypeScript + Fastify + PostgreSQL 17.6 รองรับ auth, calendar, booking และ idempotent recovery สำหรับ [FUNCHZ assignment](https://github.com/FUNCHZ/fullstack-dev-assignment)
+
+[Frontend repository/วิธีเปิดหน้าเว็บ](https://github.com/Tspkp2540/frontend) · [Backend CI](https://github.com/Tspkp2540/hotel_be/actions/runs/42524914709) · [Integration 27 flows](https://github.com/Tspkp2540/frontend/actions/runs/42525412974)
 
 ## ติดตั้งและตรวจ
 
@@ -12,11 +14,11 @@ npm run test:db
 npm run test:integration
 ```
 
-Integration runner สร้าง PostgreSQL ชั่วคราวและลบเมื่อจบ ไม่ต้องมี Frontend checkout หรือ .env
+Integration runner สร้าง PostgreSQL ชั่วคราวและลบเมื่อจบ ไม่ต้องมี Frontend checkout หรือ .env ผลล่าสุด 176 tests ผ่าน รายละเอียด [Testing](docs/TESTING.md)
 
-## เปิด API
+## เปิด API กับฐานข้อมูลของผู้ตรวจ
 
-เตรียมฐานข้อมูลว่างและตั้ง psql connection แล้วรัน migrations ตามลำดับ:
+เตรียม PostgreSQL database ว่างและ role ที่เชื่อมต่อได้ ตั้ง psql connection แล้วรัน migrations ตามลำดับ:
 
 ```sh
 psql -X -v ON_ERROR_STOP=1 --single-transaction -f database/migrations/001_initial.sql
@@ -25,32 +27,39 @@ psql -X -v ON_ERROR_STOP=1 --single-transaction -f database/migrations/003_booki
 psql -X -v ON_ERROR_STOP=1 --single-transaction -f database/seeds/001_room.sql
 ```
 
-รันเฉพาะ migrations ที่ยังไม่ใช้ Seed รันซ้ำได้ คัดลอก .env.example เป็น .env ตั้ง DATABASE_URL และ FRONTEND_ORIGIN ให้ตรงกับหน้าเว็บ จากนั้น:
+Migration role ต้องติดตั้ง btree_gist ได้ รันเฉพาะ migrations ที่ยังไม่ใช้ Seed รันซ้ำได้ คัดลอก .env.example เป็น .env แล้วตั้ง DATABASE_URL และ FRONTEND_ORIGIN เช่น http://127.0.0.1:3000 จากนั้น:
 
 ```sh
 npm run dev
 ```
 
-API เริ่มที่ http://localhost:3001 Production ใช้ `npm run build` แล้ว `npm start` ผ่าน HTTPS ดู [Security](SECURITY.md)
+API เริ่มที่ http://localhost:3001 ทุก POST ต้องส่ง Origin ตรง FRONTEND_ORIGIN มีห้องตัวอย่าง 5 ห้อง ไม่มีบัญชีเริ่มต้น ให้สมัครสมาชิกผ่านหน้าเว็บหรือ API
 
-## คำสั่ง
+## ข้อมูล DB อยู่ที่ไหน
 
-| คำสั่ง | งาน |
+- test:db, test:integration และ test:mutation ใช้ Docker DB แยกบนเครื่องที่รัน แล้วลบเมื่อจบ
+- หากเปิดผ่าน Frontend dev:system ฐานข้อมูล preview จะถูกลบเมื่อปิดระบบ
+- npm run dev/npm start ใช้ฐานข้อมูลตาม DATABASE_URL; หากต้องการเก็บบัญชี/การจองถาวร ใช้ PostgreSQL หรือ Docker volume ของผู้ตรวจเอง
+- GitHub Actions ใช้ DB ชั่วคราวบน runner ไม่มีการเชื่อมต่อฐานข้อมูล production
+
+Git เก็บ source, migrations และ seed ไม่รวมข้อมูลที่ผู้ใช้สร้างใน DB ข้อมูลของแต่ละเครื่องไม่ซิงก์กันเอง
+
+## คำสั่งอื่น
+
+| คำสั่ง | หน้าที่ |
 |---|---|
 | npm run build | TypeScript → dist/ |
-| npm run docs:check | OpenAPI ตรงกับ implementation contract |
-| npm run test:integration | Build, HTTP smoke, PostgreSQL tests และ coverage |
-| npm run test:db | Migrations/seed/constraints/concurrency |
-| npm run test:mutation | 12 critical mutants กับ PostgreSQL จริง |
-| npm run test:classifier | ตรวจตัวแยกผล mutation |
-| npm run test:ci-guards | ตรวจว่า CI ไม่ยอมรับ test.only |
+| npm run docs:check | ตรวจ OpenAPI และ generated contract |
+| npm run test:mutation | 12/12 targeted mutants ในชุดที่กำหนด |
+| npm run test:classifier | 10 tests ของตัวแยกผล mutation |
+| npm run test:ci-guards | ป้องกัน focused tests ใน CI |
 
-CI อยู่ที่ [.github/workflows/ci.yml](.github/workflows/ci.yml) ใช้งานได้จาก repository นี้โดยไม่อ่านไฟล์ภายนอก ดู [ผลตรวจและขอบเขต](docs/TESTING.md)
+Production ใช้ npm run build แล้ว npm start หลัง HTTPS reverse proxy ดู [Security และข้อจำกัด](SECURITY.md) ยังไม่มี deployment จริงหรือ production migration ledger/runtime-role provisioning
 
-## โครงสร้าง
+## เอกสารและโครงสร้าง
 
-src/ API · tests/ unit/integration · database/ migrations/seed/DB tests · scripts/ test runners · docs/ API/schema/testing
+[API](docs/API.md) · [OpenAPI](openapi.json) · [Schema/ER diagram](docs/DATABASE.md) · [Database setup](database/README.md) · [Testing/CI](docs/TESTING.md)
 
-มีห้องตัวอย่าง 5 ห้อง ไม่มี accounts/passwords เริ่มต้น สมัครผ่าน API ก่อนใช้งาน การจองต้อง login; ช่วงทับกันตอบ 409; Idempotency-Key ป้องกันรายการซ้ำและ GET /bookings/requests/:requestKey ตรวจผลได้เฉพาะเจ้าของ
+src/ API · tests/ unit/integration · database/ migrations/seed/DB tests · scripts/ test runners · docs/ contracts/schema/testing
 
-[Schema และ ER diagram](docs/DATABASE.md) · [Database setup](database/README.md)
+CI และ required check ชื่อ CI required บน main ตั้งแล้ว ดู [workflow](.github/workflows/ci.yml) ฟีเจอร์รอบนี้ไม่มี payment, admin หรือ API แก้ไข/ยกเลิกการจอง

@@ -69,4 +69,4 @@ npm run test:integration
 
 OpenAPI และ response assertions ตรวจร่วมกับ security suite ยังไม่มี deployment จริงหรือ load/penetration test; browser E2E และ targeted mutation tests ผ่านแล้ว ส่วน cleanup helper ตรวจแล้ว แต่ไม่ได้รอ runtime timer tick จริง
 
-Production migration tooling, runtime roles และ secrets/deployment setup ยังอยู่ในขั้นส่งมอบ CI workflow พร้อม แต่ยังรอ run แรกบน GitHub
+CI บน GitHub และ paired browser integration ผ่านแล้ว พร้อม required check บน main ดู [หลักฐาน](docs/TESTING.md) ส่วน production migration tooling, runtime-role provisioning, secrets/deployment setup และ load/penetration tests เป็นงาน production ที่ยังไม่ได้ทำ

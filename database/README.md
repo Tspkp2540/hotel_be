@@ -42,4 +42,4 @@ Concurrency ใช้ connections แยกและตรวจ lock state ก�
 
 ## งานส่งมอบที่เหลือ
 
-Production migration ledger/checksum/locking, runtime roles และการจัด DB assets เข้า Backend repository อยู่ใน [งาน 08](../docs/TESTING.md)
+DB assets รวมอยู่ใน Backend repository แล้ว Production migration ledger/checksum/locking และ runtime-role provisioning ยังไม่ได้ทำ ดู [ขอบเขตการตรวจ](../docs/TESTING.md)

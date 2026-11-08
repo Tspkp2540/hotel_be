@@ -29,6 +29,18 @@ npm run test:mutation -- --id=BE-KEY-02
 
 ## CI และการส่งงาน
 
-[Workflow](../.github/workflows/ci.yml) ตรวจ DB, build, coverage, mutations และเก็บรายงาน 7 วัน เมื่อมี run แรกบน GitHub ให้ตั้ง required check ชื่อ CI required ยังไม่มี deployment จริง, load/penetration test หรือ production migration ledger/runtime roles
+[Workflow](../.github/workflows/ci.yml) ตรวจ DB, build, coverage, mutations และเก็บรายงาน 7 วัน Required check ชื่อ CI required บน main ตั้งแล้ว
+
+หลักฐานตรวจบน GitHub วันที่ 9 พฤศจิกายน 2026:
+
+| การตรวจ | ผล |
+|---|---|
+| [Backend quality](https://github.com/Tspkp2540/hotel_be/actions/runs/42524914709) | ผ่าน รวม CI required |
+| [Frontend quality](https://github.com/Tspkp2540/frontend/actions/runs/42524975877) | ผ่าน รวม CI required |
+| [Paired integration](https://github.com/Tspkp2540/frontend/actions/runs/42525412974) | 27 browser flows ผ่าน |
+
+Integration ใช้ Backend commit [0e56e76](https://github.com/Tspkp2540/hotel_be/commit/0e56e76e1c553f9f132fb74e2a2047a840b21d07) และ Frontend commit [d5eabbd](https://github.com/Tspkp2540/frontend/commit/d5eabbd719951b9340deecddff01c93187be4b01) ผลเป็นหลักฐานของคู่ commits นี้ ไม่ใช่การรับรอง commits ในอนาคต
+
+ยังไม่มี deployment จริง, load/penetration test หรือ production migration ledger/runtime-role provisioning
 
 [API](API.md) · [Database/ER diagram](DATABASE.md) · [Security](../SECURITY.md)
