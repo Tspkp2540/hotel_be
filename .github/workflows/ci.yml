@@ -50,6 +50,8 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
       - run: npm ci
+      - name: Check code formatting
+        run: npm run format:check
       - name: Verify focused-test guards
         run: npm run test:ci-guards
       - name: Check database constraints and concurrency

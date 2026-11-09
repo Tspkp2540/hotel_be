@@ -13,7 +13,7 @@ export const mutations=[
  m('backend','BE-AUTH-01','src/auth/service.ts','if (!user || !valid)','if (!user)','Accept a wrong password for an existing user',auth),
  m('backend','BE-AUTH-02','src/auth/service.ts','this.clock().getTime() >= session.expiresAt.getTime()','this.clock().getTime() > session.expiresAt.getTime()','Authorize a session at exact expiry',auth),
  m('backend','BE-KEY-01','src/booking/repository.ts','booking[key] !== input[key]','false','Ignore different payload for an existing key',booking),
- m('backend','BE-KEY-02','src/booking/repository.ts','const result = await this.pool.query<Row>(`SELECT ${selection} FROM bookings WHERE user_id=$1 AND request_key=$2`, [userId, requestKey]);','const result = await this.pool.query<Row>(`SELECT ${selection} FROM bookings WHERE $1::uuid IS NOT NULL AND request_key=$2`, [userId, requestKey]);','Remove owner restriction from lookup',booking),
+ m("backend","BE-KEY-02","src/booking/repository.ts","const result = await this.pool.query<Row>(\n      `SELECT ${selection} FROM bookings WHERE user_id=$1 AND request_key=$2`,\n      [userId, requestKey],\n    );","const result = await this.pool.query<Row>(\n      `SELECT ${selection} FROM bookings WHERE $1::uuid IS NOT NULL AND request_key=$2`,\n      [userId, requestKey],\n    );","Remove owner restriction from lookup",["tests/booking.test.ts"]),
  m('backend','BE-KEY-03','src/booking/repository.ts','if (previous.rows[0]) {','if (false && previous.rows[0]) {','Skip replay after acquiring the transaction lock',booking),
  m('backend','BE-KEY-04','src/booking/repository.ts','requestKey ?? null','null','Do not persist the idempotency key',booking),
 ];

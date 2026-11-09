@@ -4,6 +4,7 @@
 
 | คำสั่ง | ผลล่าสุดในเครื่อง |
 |---|---|
+| npm run format:check | ตรวจรูปแบบ source/tests แบบเดียวกับ CI |
 | npm run test:integration | 186 tests; OpenAPI/build/HTTP smoke และ PostgreSQL จริง |
 | npm run test:db | Fresh/upgrade migrations, seed, constraints, rollback และ concurrency ผ่าน |
 | npm run test:mutation | 14/14 killed; ไม่มี survived/invalid/timeout |
@@ -11,6 +12,8 @@
 | npm run test:ci-guards | ปฏิเสธ focused tests ใน CI |
 
 Coverage: statements/lines/functions100%, branches99.56% Gates ≥90/90/90/85 และ branches ของ auth/date/calendar/booking service100% ไม่รวม server.ts bootstrap ซึ่งตรวจด้วย HTTP smoke
+
+รูปแบบโค้ด: `npm run format` จัดรูปแบบ และ `npm run format:check` ตรวจแบบเดียวกับCI ใช้ .prettierrc.json และ LFตาม.gitattributes การปรับmutation anchorsหลังformatคงกฎที่ทดสอบเดิม
 
 ## ขอบเขตที่ตรวจ
 
@@ -33,6 +36,14 @@ Catalogue14เคสครอบคลุม date boundaries, auth, ownership, i
 
 [Workflow](../.github/workflows/ci.yml) ตรวจ DB/build/coverage/mutation และเก็บรายงาน7วัน Required checkชื่อ CI required
 
-[หลักฐาน Backend CI เดิม](https://github.com/Tspkp2540/hotel_be/actions/runs/42524914709) และ [integration27 flowsเดิม](https://github.com/Tspkp2540/frontend/actions/runs/42525412974) ใช้ Backend0e56e76 / Frontendd5eabbd ฟีเจอร์ล่าสุดยังไม่ได้commit/push ผลนี้เป็นการตรวจlocal ไม่ใช่การรับรองCIของworking tree ปัจจุบัน
+หลักฐาน GitHub ที่ยืนยันแล้ว วันที่10พฤศจิกายน2026:
+
+| การตรวจ | Commit ที่ใช้ | ผล |
+|---|---|---|
+| Backend quality | d7fe382e488f1ca0ada7d2ccd2073f7b06c195f8 | [ผ่าน](https://github.com/Tspkp2540/hotel_be/actions/runs/42670436874) |
+| Frontend quality | 85162adb597a15b9c2905d5a9903aa8fcf0db44e | [ผ่าน](https://github.com/Tspkp2540/frontend/actions/runs/42704414399) |
+| Browser integration | คู่ commit ข้างบน | [35 flows ผ่าน](https://github.com/Tspkp2540/frontend/actions/runs/42704667964) |
+
+ผลแต่ละ run รับรองเฉพาะ commit ที่ระบุ การแก้ไขหลังจากนั้นต้องตรวจใหม่ ตารางนี้ไม่อ้างว่าผ่าน CI สำหรับ working tree ที่ยังไม่ได้ commit
 
 ยังไม่มี deploymentจริง, load/penetration test หรือ production migration ledger/runtime-role provisioning รายละเอียด [Security](../SECURITY.md) · [API](API.md) · [Schema](DATABASE.md)

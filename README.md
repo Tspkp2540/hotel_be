@@ -49,6 +49,8 @@ Git เก็บ source, migrations และ seed ไม่รวมข้อ�
 
 | คำสั่ง | หน้าที่ |
 |---|---|
+| npm run format | จัดรูปแบบ source และ tests ด้วย Prettier |
+| npm run format:check | ตรวจรูปแบบเดียวกับ CI |
 | npm run build | TypeScript → dist/ |
 | npm run docs:check | ตรวจ OpenAPI และ generated contract |
 | npm run test:mutation | 14/14 targeted mutants ในชุดที่กำหนด |
@@ -63,4 +65,4 @@ Production ใช้ npm run build แล้ว npm start หลัง HTTPS rev
 
 src/ API · tests/ unit/integration · database/ migrations/seed/DB tests · scripts/ test runners · docs/ contracts/schema/testing
 
-Required check ชื่อ CI required ดู [workflow](.github/workflows/ci.yml) ฟีเจอร์ล่าสุดยังไม่ได้commit/push ไม่มี payment, Admin หรือ API แก้ไขวันพัก
+Required check ชื่อ CI required ตรวจ format/build/tests ตาม [workflow](.github/workflows/ci.yml) ดูผลพร้อม commit ใน [Testing](docs/TESTING.md) ขอบเขตยังไม่มี payment, Admin หรือ API แก้ไขวันพัก

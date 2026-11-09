@@ -1,0 +1,12 @@
+node_modules/
+dist/
+coverage/
+.mutation-work/
+mutation-report/
+test-results/
+playwright-report/
+backend-source/
+openapi.json
+package-lock.json
+.ci-work/
+ci-report/

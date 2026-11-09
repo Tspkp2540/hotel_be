@@ -5,10 +5,14 @@ export default defineConfig({
     allowOnly: !process.env.CI,
     fileParallelism: false,
     coverage: {
-      provider: 'v8', include: ['src/**/*.ts'],
+      provider: 'v8',
+      include: ['src/**/*.ts'],
       exclude: ['src/server.ts'], // Process bootstrap; exercised by build and real TCP smoke test.
       thresholds: {
-        statements: 90, lines: 90, functions: 90, branches: 85,
+        statements: 90,
+        lines: 90,
+        functions: 90,
+        branches: 85,
         'src/auth/service.ts': { branches: 100 },
         'src/calendar/service.ts': { branches: 100 },
         'src/calendar/dates.ts': { branches: 100 },

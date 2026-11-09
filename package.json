@@ -18,7 +18,9 @@
     "test:integration": "npm run docs:check && npm run build && node scripts/test-integration.mjs",
     "test:ci-guards": "node scripts/check-ci-guards.mjs",
     "test:classifier": "node --test scripts/mutation-results.test.mjs",
-    "test:db": "node database/scripts/test.mjs"
+    "test:db": "node database/scripts/test.mjs",
+    "format": "prettier --write src tests vitest.config.ts",
+    "format:check": "prettier --check src tests vitest.config.ts"
   },
   "dependencies": {
     "@fastify/cookie": "^11.1.5",
@@ -36,6 +38,7 @@
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",
     "openapi-types": "^12.1.3",
+    "prettier": "3.9.10",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vite": "^8.3.6",
