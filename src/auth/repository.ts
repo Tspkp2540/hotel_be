@@ -1,6 +1,7 @@
 import type { Pool } from 'pg';
 
 export type User = { id: string; email: string; fullName: string; createdAt: string };
+export const publicUser = (user: User): User => ({id:user.id,email:user.email,fullName:user.fullName,createdAt:user.createdAt});
 export type CredentialUser = User & { passwordHash: string };
 export type Session = { user: User; expiresAt: Date };
 export interface AuthRepository {

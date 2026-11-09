@@ -2,6 +2,8 @@ const m=(target,id,file,before,after,description,tests)=>({target,id,file,before
 const booking=['tests/booking.test.ts'],auth=['tests/auth.test.ts'],calendar=['tests/calendar.test.ts'];
 const dates=['src/lib/dates.test.ts'],flows=['src/pages/flows.test.tsx'],bookFlows=['src/pages/booking-flows.test.tsx'];
 export const mutations=[
+ m('backend','BE-CANCEL-01','src/booking/repository.ts',"WHERE user_id=$1 AND id=$2 AND (status='cancelled' OR check_in>$3::date)","WHERE ($1::uuid IS NOT NULL) AND id=$2 AND (status='cancelled' OR check_in>$3::date)",'Remove owner restriction from cancellation',booking),
+ m('backend','BE-CANCEL-02','src/booking/repository.ts','check_in>$3::date','check_in>=$3::date','Allow cancellation on the check-in day',booking),
  m('backend','BE-DATE-01','src/booking/service.ts','advance < 0','advance <= 0','Reject check-in today',booking),
  m('backend','BE-DATE-02','src/booking/service.ts','advance > this.rules.maxAdvanceDays','advance >= this.rules.maxAdvanceDays','Reject exact advance limit',booking),
  m('backend','BE-DATE-03','src/booking/service.ts','nights <= 0','nights < 0','Allow zero-night stay',booking),

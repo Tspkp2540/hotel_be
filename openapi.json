@@ -2,8 +2,8 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Booking API",
-    "version": "1.1.0",
-    "description": "Seven core endpoints plus authenticated booking-request recovery. JSON UTF-8, maximum body 16 KiB. Strict bodies/queries; no type coercion. Prototype-poisoning JSON (__proto__ or constructor.prototype) is rejected during parsing with 400 INVALID_JSON. HTTPS required in production. Every POST requires allowed Origin. Cookie credentials required for protected operations. Rate limits are shared in PostgreSQL in the running server. General 120/min/user (IP for unauthenticated), register 5/15min/IP, login 20/15min/IP plus 10/15min/normalized email. Responses are not cached. Unknown routes return 404 NOT_FOUND. Passwords are Argon2id; session tokens are stored only as SHA-256 hashes."
+    "version": "1.4.0",
+    "description": "Seven core endpoints plus authenticated booking-request recovery and owner booking history. JSON UTF-8, maximum body 16 KiB. Strict bodies/queries; no type coercion. Prototype-poisoning JSON (__proto__ or constructor.prototype) is rejected during parsing with 400 INVALID_JSON. HTTPS required in production. Every POST requires allowed Origin. Cookie credentials required for protected operations. Rate limits are shared in PostgreSQL in the running server. General 120/min/user (IP for unauthenticated), register 5/15min/IP, login 20/15min/IP plus 10/15min/normalized email. Responses are not cached. Unknown routes return 404 NOT_FOUND. Passwords are Argon2id; session tokens are stored only as SHA-256 hashes."
   },
   "servers": [
     {
@@ -3079,6 +3079,436 @@
             "description": "Client-generated UUID, canonicalized to lowercase. Reuse only with the same normalized booking payload."
           }
         ]
+      },
+      "get": {
+        "operationId": "myBookings",
+        "summary": "List bookings owned by the current user",
+        "security": [
+          {
+            "SessionCookie": []
+          },
+          {
+            "DevelopmentSessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List bookings owned by the current user",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server-generated UUID; client request IDs are ignored",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "no-store"
+                  ]
+                }
+              },
+              "X-Content-Type-Options": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "nosniff"
+                  ]
+                }
+              },
+              "Referrer-Policy": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "no-referrer"
+                  ]
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error 400",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server-generated UUID; client request IDs are ignored",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "no-store"
+                  ]
+                }
+              },
+              "X-Content-Type-Options": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "nosniff"
+                  ]
+                }
+              },
+              "Referrer-Policy": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "no-referrer"
+                  ]
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error 401",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server-generated UUID; client request IDs are ignored",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "no-store"
+                  ]
+                }
+              },
+              "X-Content-Type-Options": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "nosniff"
+                  ]
+                }
+              },
+              "Referrer-Policy": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "no-referrer"
+                  ]
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error 403",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server-generated UUID; client request IDs are ignored",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "no-store"
+                  ]
+                }
+              },
+              "X-Content-Type-Options": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "nosniff"
+                  ]
+                }
+              },
+              "Referrer-Policy": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "no-referrer"
+                  ]
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Error 413",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server-generated UUID; client request IDs are ignored",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "no-store"
+                  ]
+                }
+              },
+              "X-Content-Type-Options": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "nosniff"
+                  ]
+                }
+              },
+              "Referrer-Policy": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "no-referrer"
+                  ]
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Error 415",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server-generated UUID; client request IDs are ignored",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "no-store"
+                  ]
+                }
+              },
+              "X-Content-Type-Options": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "nosniff"
+                  ]
+                }
+              },
+              "Referrer-Policy": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "no-referrer"
+                  ]
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Error 422",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server-generated UUID; client request IDs are ignored",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "no-store"
+                  ]
+                }
+              },
+              "X-Content-Type-Options": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "nosniff"
+                  ]
+                }
+              },
+              "Referrer-Policy": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "no-referrer"
+                  ]
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error 429",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server-generated UUID; client request IDs are ignored",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "no-store"
+                  ]
+                }
+              },
+              "X-Content-Type-Options": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "nosniff"
+                  ]
+                }
+              },
+              "Referrer-Policy": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "no-referrer"
+                  ]
+                }
+              },
+              "Retry-After": {
+                "description": "Seconds until the quota resets",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error 500",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server-generated UUID; client request IDs are ignored",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "no-store"
+                  ]
+                }
+              },
+              "X-Content-Type-Options": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "nosniff"
+                  ]
+                }
+              },
+              "Referrer-Policy": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "no-referrer"
+                  ]
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-reject-unknown-query": true,
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "description": "Newest created_at then id first. Includes cancelled bookings and inactive rooms. Cursor is the last returned booking UUID; missing or foreign cursor returns 422. nextCursor=null marks the final page. User identity comes exclusively from the session. Room name is the current room name. Pagination is not a snapshot; new bookings appear after refreshing."
       }
     },
     "/bookings/requests/{requestKey}": {
@@ -3546,6 +3976,524 @@
         ],
         "description": "404 BOOKING_REQUEST_NOT_FOUND means no committed result is visible for this user/key at this instant; an in-flight transaction may still commit. Retry POST with the same key and unchanged payload to resolve safely. Never reveals another user request. No guest data is exposed by calendar."
       }
+    },
+    "/bookings/{bookingId}/cancel": {
+      "post": {
+        "operationId": "cancelBooking",
+        "summary": "Cancel an owned booking before its check-in day",
+        "security": [
+          {
+            "SessionCookie": []
+          },
+          {
+            "DevelopmentSessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cancel an owned booking before its check-in day",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server-generated UUID; client request IDs are ignored",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "no-store"
+                  ]
+                }
+              },
+              "X-Content-Type-Options": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "nosniff"
+                  ]
+                }
+              },
+              "Referrer-Policy": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "no-referrer"
+                  ]
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error 400",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server-generated UUID; client request IDs are ignored",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "no-store"
+                  ]
+                }
+              },
+              "X-Content-Type-Options": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "nosniff"
+                  ]
+                }
+              },
+              "Referrer-Policy": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "no-referrer"
+                  ]
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error 401",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server-generated UUID; client request IDs are ignored",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "no-store"
+                  ]
+                }
+              },
+              "X-Content-Type-Options": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "nosniff"
+                  ]
+                }
+              },
+              "Referrer-Policy": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "no-referrer"
+                  ]
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error 403",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server-generated UUID; client request IDs are ignored",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "no-store"
+                  ]
+                }
+              },
+              "X-Content-Type-Options": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "nosniff"
+                  ]
+                }
+              },
+              "Referrer-Policy": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "no-referrer"
+                  ]
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error 404",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server-generated UUID; client request IDs are ignored",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "no-store"
+                  ]
+                }
+              },
+              "X-Content-Type-Options": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "nosniff"
+                  ]
+                }
+              },
+              "Referrer-Policy": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "no-referrer"
+                  ]
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error 409",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server-generated UUID; client request IDs are ignored",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "no-store"
+                  ]
+                }
+              },
+              "X-Content-Type-Options": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "nosniff"
+                  ]
+                }
+              },
+              "Referrer-Policy": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "no-referrer"
+                  ]
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Error 413",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server-generated UUID; client request IDs are ignored",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "no-store"
+                  ]
+                }
+              },
+              "X-Content-Type-Options": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "nosniff"
+                  ]
+                }
+              },
+              "Referrer-Policy": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "no-referrer"
+                  ]
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Error 415",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server-generated UUID; client request IDs are ignored",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "no-store"
+                  ]
+                }
+              },
+              "X-Content-Type-Options": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "nosniff"
+                  ]
+                }
+              },
+              "Referrer-Policy": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "no-referrer"
+                  ]
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Error 422",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server-generated UUID; client request IDs are ignored",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "no-store"
+                  ]
+                }
+              },
+              "X-Content-Type-Options": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "nosniff"
+                  ]
+                }
+              },
+              "Referrer-Policy": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "no-referrer"
+                  ]
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error 429",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server-generated UUID; client request IDs are ignored",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "no-store"
+                  ]
+                }
+              },
+              "X-Content-Type-Options": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "nosniff"
+                  ]
+                }
+              },
+              "Referrer-Policy": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "no-referrer"
+                  ]
+                }
+              },
+              "Retry-After": {
+                "description": "Seconds until the quota resets",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error 500",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server-generated UUID; client request IDs are ignored",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "no-store"
+                  ]
+                }
+              },
+              "X-Content-Type-Options": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "nosniff"
+                  ]
+                }
+              },
+              "Referrer-Policy": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "no-referrer"
+                  ]
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-reject-unknown-query": true,
+        "parameters": [
+          {
+            "name": "bookingId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uri"
+            }
+          }
+        ],
+        "description": "No body or query. Session determines owner. Atomic cancellation before check-in day in Asia/Bangkok. Already cancelled returns 200 unchanged, even after check-in. Missing and foreign bookings both return 404 BOOKING_NOT_FOUND; confirmed on/past check-in returns 409 CANCELLATION_NOT_ALLOWED. Keeps history and idempotency key, releases dates after commit. Cancellation quota 10/min/user plus general quota."
+      }
     }
   },
   "components": {
@@ -3720,7 +4668,9 @@
                   "additionalProperties": false,
                   "required": [
                     "id",
-                    "name"
+                    "name",
+                    "hotelName",
+                    "province"
                   ],
                   "properties": {
                     "id": {
@@ -3728,6 +4678,16 @@
                       "format": "uuid"
                     },
                     "name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100
+                    },
+                    "hotelName": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 150
+                    },
+                    "province": {
                       "type": "string",
                       "minLength": 1,
                       "maxLength": 100
@@ -3980,6 +4940,105 @@
           }
         }
       },
+      "BookingsResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "bookings",
+              "nextCursor"
+            ],
+            "properties": {
+              "bookings": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "id",
+                    "roomId",
+                    "checkIn",
+                    "checkOut",
+                    "guestName",
+                    "guestPhone",
+                    "guestEmail",
+                    "nights",
+                    "status",
+                    "createdAt",
+                    "roomName"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "roomId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "checkIn": {
+                      "type": "string",
+                      "format": "date",
+                      "pattern": "^(?!0000)[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+                    },
+                    "checkOut": {
+                      "type": "string",
+                      "format": "date",
+                      "pattern": "^(?!0000)[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+                    },
+                    "guestName": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 150,
+                      "pattern": "^[^\\u0000]*$",
+                      "description": "Trimmed; Unicode code points; NUL is not allowed"
+                    },
+                    "guestPhone": {
+                      "type": "string",
+                      "pattern": "^\\+[1-9][0-9]{1,14}$"
+                    },
+                    "guestEmail": {
+                      "type": "string",
+                      "format": "email",
+                      "maxLength": 254,
+                      "description": "Trimmed and lowercased before storage"
+                    },
+                    "nights": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "confirmed",
+                        "cancelled"
+                      ]
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "roomName": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "nextCursor": {
+                "type": "string",
+                "format": "uuid",
+                "nullable": true
+              }
+            }
+          }
+        }
+      },
       "ErrorResponse": {
         "type": "object",
         "additionalProperties": false,
@@ -4012,6 +5071,8 @@
                   "BOOKING_CONFLICT",
                   "IDEMPOTENCY_KEY_REUSED",
                   "BOOKING_REQUEST_NOT_FOUND",
+                  "BOOKING_NOT_FOUND",
+                  "CANCELLATION_NOT_ALLOWED",
                   "PAYLOAD_TOO_LARGE",
                   "UNSUPPORTED_MEDIA_TYPE",
                   "VALIDATION_ERROR",

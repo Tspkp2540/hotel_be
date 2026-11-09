@@ -70,3 +70,9 @@ npm run test:integration
 OpenAPI และ response assertions ตรวจร่วมกับ security suite ยังไม่มี deployment จริงหรือ load/penetration test; browser E2E และ targeted mutation tests ผ่านแล้ว ส่วน cleanup helper ตรวจแล้ว แต่ไม่ได้รอ runtime timer tick จริง
 
 CI บน GitHub และ paired browser integration ผ่านแล้ว พร้อม required check บน main ดู [หลักฐาน](docs/TESTING.md) ส่วน production migration tooling, runtime-role provisioning, secrets/deployment setup และ load/penetration tests เป็นงาน production ที่ยังไม่ได้ทำ
+
+## Response allowlist และ Cancellation
+
+- ทุก success DTO เลือก field ตาม contract โดยชัดเจน รวม auth, rooms, calendar, booking/history/recovery/cancel เพื่อกัน field ภายในที่เพิ่มใน repository หลุดสู่ JSON
+- Frontend ไม่แสดง message/field diagnostics จาก server 5xx ใช้ข้อความทั่วไปแทน Backend ยังต้องไม่ส่งข้อมูลลับ เพราะ browser Network ตรวจ response จริงได้
+- POST cancel ใช้ Origin/session/owner check เดียวกับ booking จำกัด10 attempts/min/user เพิ่มจาก general quota กดซ้ำปลอดภัย ไม่คืนวันที่เจ้าของอื่น

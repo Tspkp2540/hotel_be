@@ -31,6 +31,35 @@ describe('HTTP security hardening',()=>{
   beforeEach(async()=>{ repo=new TestAuth(); now=new Date('2026-11-06T00:00:00Z'); app=await buildApp({repository:repo,frontendOrigin:origin,clock:()=>now,hasher}); });
   afterEach(async()=>{ await app.close(); });
   const post=(url:string,body:unknown=payload,extra={})=>app.inject({method:'POST',url,headers:{origin},payload:body as object,...extra});
+  it('does not expose repository-only data through rooms or calendar',async()=>{
+    await app.close();
+    const roomId='7c71298a-ef46-457c-ab5e-9edb238a54e5';
+    app=await buildApp({repository:repo,frontendOrigin:origin,clock:()=>now,hasher,calendarRepository:{
+      listActiveRooms:async()=>[{id:roomId,name:'Room',hotelName:'Hotel',province:'เชียงใหม่',internal:'private-room'}],isRoomActive:async()=>true,
+      bookedRanges:async()=>[{checkIn:'2026-11-10',checkOut:'2026-11-12',guestEmail:'private@example.com',userId:'private-owner'}],
+    }});
+    await post('/api/v1/auth/register');
+    const login=await post('/api/v1/auth/login',{email:payload.email,password:payload.password});
+    const cookie=login.cookies[0];
+    for(const url of ['/api/v1/rooms',`/api/v1/rooms/${roomId}/calendar?from=2026-11-01&to=2026-12-01`]) {
+      const response=await app.inject({method:'GET',url,cookies:{[cookie.name]:cookie.value}});
+      expect(response.statusCode).toBe(200); expect(response.body).not.toMatch(/private|guestEmail|userId|internal/);
+    }
+  });
+  it('allowlists account responses even when the repository returns internal fields',async()=>{
+    const internal={passwordHash:'private-hash',role:'private-role',tokenHash:'private-token',sql:'private-query'};
+    const original=repo.createUser.bind(repo);
+    vi.spyOn(repo,'createUser').mockImplementation(async(...args)=>({...await original(...args),...internal}));
+    const registered=await post('/api/v1/auth/register'); expect(registered.statusCode).toBe(201);
+    const credential=repo.users.get(payload.email)!;
+    Object.assign(credential,{role:'private-role',tokenHash:'private-token',sql:'private-query'});
+    const login=await post('/api/v1/auth/login',{email:payload.email,password:payload.password}); expect(login.statusCode).toBe(200);
+    for(const session of repo.sessions.values()) Object.assign(session.user,internal);
+    const cookie=login.cookies[0];
+    const me=await app.inject({method:'GET',url:'/api/v1/auth/me',cookies:{[cookie.name]:cookie.value}});
+    expect(me.statusCode).toBe(200);
+    for(const response of [registered,login,me]) for(const key of Object.keys(internal)) expect(response.json().data.user).not.toHaveProperty(key);
+  });
   it('uses its own request ID and sends security/cache headers on success and errors',async()=>{
     for(const options of [
       {method:'GET' as const,url:'/api/v1/auth/me'},

@@ -1,6 +1,6 @@
 import type { Pool } from 'pg';
 
-export type Room = { id: string; name: string };
+export type Room = { id: string; name: string; hotelName: string; province: string };
 export type BookedRange = { checkIn: string; checkOut: string };
 export interface CalendarRepository {
   listActiveRooms(): Promise<Room[]>;
@@ -11,7 +11,8 @@ export interface CalendarRepository {
 export class PgCalendarRepository implements CalendarRepository {
   constructor(private pool: Pool) {}
   async listActiveRooms(): Promise<Room[]> {
-    const result = await this.pool.query<Room>('SELECT id,name FROM rooms WHERE is_active=TRUE ORDER BY created_at ASC,id ASC');
+    const result = await this.pool.query<Room>(`SELECT r.id,r.name,h.name AS "hotelName",h.province
+      FROM rooms r JOIN hotels h ON h.id=r.hotel_id WHERE r.is_active=TRUE ORDER BY r.created_at ASC,r.id ASC`);
     return result.rows;
   }
   async isRoomActive(roomId: string): Promise<boolean> {

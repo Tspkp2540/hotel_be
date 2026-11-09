@@ -1,6 +1,6 @@
 # Database
 
-PostgreSQL 17.6 ประกอบด้วย 4 business tables และ 1 infrastructure table ดู [Schema และ ER diagram](../docs/DATABASE.md)
+PostgreSQL 17.6 ประกอบด้วย 5 business tables และ 1 infrastructure table ดู [Schema และ ER diagram](../docs/DATABASE.md)
 
 ## ไฟล์
 
@@ -9,7 +9,8 @@ PostgreSQL 17.6 ประกอบด้วย 4 business tables และ 1 inf
 | [001_initial.sql](migrations/001_initial.sql) | Users, sessions, rooms, bookings และ constraints |
 | [002_rate_limit_buckets.sql](migrations/002_rate_limit_buckets.sql) | Shared rate-limit counters |
 | [003_booking_request_key.sql](migrations/003_booking_request_key.sql) | Nullable request UUID และ unique user/key |
-| [001_room.sql](seeds/001_room.sql) | Seed ห้องตัวอย่าง 5 รายการแบบไม่ overwrite |
+| [004_hotels.sql](migrations/004_hotels.sql) | Hotels และ rooms.hotel_id พร้อมย้ายห้องเดิม |
+| [001_room.sql](seeds/001_room.sql) | Seed โรงแรม8แห่ง/8จังหวัด/12ห้องแบบไม่ overwrite |
 | [constraints.sql](tests/constraints.sql) | Positive/negative constraint tests |
 | [test.mjs](scripts/test.mjs) | Disposable PostgreSQL test runner |
 
@@ -21,10 +22,11 @@ PostgreSQL 17.6 ประกอบด้วย 4 business tables และ 1 inf
 psql -X -v ON_ERROR_STOP=1 --single-transaction -f database/migrations/001_initial.sql
 psql -X -v ON_ERROR_STOP=1 --single-transaction -f database/migrations/002_rate_limit_buckets.sql
 psql -X -v ON_ERROR_STOP=1 --single-transaction -f database/migrations/003_booking_request_key.sql
+psql -X -v ON_ERROR_STOP=1 --single-transaction -f database/migrations/004_hotels.sql
 psql -X -v ON_ERROR_STOP=1 --single-transaction -f database/seeds/001_room.sql
 ```
 
-Apply migrations ครั้งเดียวตามลำดับ รันเฉพาะไฟล์ที่ยังไม่ใช้ หากมี 001/002 แล้วให้รันเฉพาะ 003; booking เดิมมี request_key=NULL Seed รันซ้ำได้และไม่เปิดห้อง inactive กลับเอง Migration role ต้องติดตั้ง btree_gist ได้
+Apply migrations ครั้งเดียวตามลำดับ รันเฉพาะไฟล์ที่ยังไม่ใช้ หากมี 001–003 แล้วให้รันเฉพาะ 004 ตามด้วย seed; ห้องเดิมถูกผูกกับบ้านพักเชียงใหม่โดยไม่ลบห้องหรือการจอง Seed รันซ้ำได้และไม่เปิดห้อง inactive กลับเอง Migration role ต้องติดตั้ง btree_gist ได้
 
 ## ทดสอบ
 

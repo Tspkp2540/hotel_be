@@ -6,6 +6,10 @@ import type { CreateBooking } from './validation.js';
 
 export class BookingService {
   private rules: BookingRules;
+  async cancel(userId: string, bookingId: string) {
+    const now = this.clock();
+    return this.repository.cancel(userId,bookingId,bangkokToday(now),now);
+  }
   constructor(private repository: BookingRepository, private clock: () => Date = () => new Date(), rules: BookingRules = DEFAULT_BOOKING_RULES) {
     this.rules = copyBookingRules(rules);
   }

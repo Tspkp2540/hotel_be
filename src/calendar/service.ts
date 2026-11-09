@@ -13,13 +13,13 @@ export class CalendarService {
   constructor(private repository: CalendarRepository, private clock: () => Date = () => new Date(), rules: BookingRules = DEFAULT_BOOKING_RULES) {
     this.rules = copyBookingRules(rules);
   }
-  async rooms() { return { rooms: await this.repository.listActiveRooms() }; }
+  async rooms() { return { rooms: (await this.repository.listActiveRooms()).map(room => ({id:room.id,name:room.name,hotelName:room.hotelName,province:room.province})) }; }
   async calendar(roomId: string, from: string, to: string) {
     if (!await this.repository.isRoomActive(roomId)) throw new ApiError(404, 'ROOM_NOT_FOUND', 'ไม่พบห้องที่เปิดรับจอง');
     return {
       roomId, timezone: 'Asia/Bangkok', today: bangkokToday(this.clock()),
       bookingRules: { ...this.rules }, from, to,
-      bookedRanges: await this.repository.bookedRanges(roomId, from, to),
+      bookedRanges: (await this.repository.bookedRanges(roomId, from, to)).map(range => ({checkIn:range.checkIn,checkOut:range.checkOut})),
     };
   }
 }

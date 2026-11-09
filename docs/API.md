@@ -57,6 +57,8 @@ Frontend ต้องส่ง `credentials: "include"` ทุก POST ต้อ
 | GET | /rooms | ต้อง | 200 |
 | GET | /rooms/:roomId/calendar | ต้อง | 200 |
 | POST | /bookings | ต้อง | 201 |
+| GET | /bookings | ต้อง | 200 |
+| POST | /bookings/:bookingId/cancel | ต้อง | 200 |
 | GET | /bookings/requests/:requestKey | ต้อง | 200 |
 
 ### สมัครสมาชิก — POST /auth/register
@@ -93,13 +95,13 @@ Body: `email`, `password` ตามชนิดข้อมูลข้างต
 {
   "data": {
     "rooms": [
-      { "id": "7c71298a-ef46-457c-ab5e-9edb238a54e5", "name": "บ้านพักหลัก" }
+      { "id": "7c71298a-ef46-457c-ab5e-9edb238a54e5", "name": "บ้านพักหลัก", "hotelName": "บ้านพักเชียงใหม่", "province": "เชียงใหม่" }
     ]
   }
 }
 ```
 
-ไม่มีห้องให้คืน rooms: [] ขอบเขตปัจจุบันยังไม่ใช้ pagination
+ไม่มีห้องให้คืน rooms: [] ขอบเขตปัจจุบันยังไม่ใช้ pagination; hotelName:string (1–150) และ province:string (1–100) เป็น required fields จาก hotels ผ่าน rooms.hotel_id หน้าเว็บกรองข้อมูลชุดนี้ด้วย q/province ใน URL ของหน้า /rooms ไม่ใช่ query ของ API; API ยังปฏิเสธ unknown query ตามเดิม
 
 ### ปฏิทิน — GET /rooms/:roomId/calendar
 
@@ -207,3 +209,40 @@ Server ใช้ PostgreSQL shared counters Register/login ใช้ dedicated I
 
 Origin ที่อนุญาตอ่าน error responses ได้รวม early 429/500 โดย CORS expose Retry-After และ X-Request-Id ให้ Frontend
 
+
+## ประวัติการจองของฉัน
+
+`GET /bookings?limit=20&cursor=<booking UUID>` ต้อง login; ไม่มี request body
+
+| Query | Type | กติกา |
+|---|---|---|
+| limit | integer ใน query string | ค่าเริ่มต้น 20, ช่วง 1–50; รับเฉพาะเลขฐานสิบจำนวนเต็ม ไม่มีศูนย์นำหน้า |
+| cursor | string UUID, optional | ID รายการสุดท้ายของหน้าก่อนหน้า; canonicalize เป็น lowercase |
+
+Response 200: `{ "data": { "bookings": [], "nextCursor": null } }`
+
+แต่ละรายการใช้ข้อมูลเดียวกับ `BookingResponse.booking` และเพิ่ม `roomName: string` เป็นชื่อห้องปัจจุบัน `nextCursor` เป็น UUID string หรือ null เมื่อหมดรายการ เรียง `created_at DESC, id DESC` รวมอดีต/อนาคต ทั้ง confirmed/cancelled และห้องที่ปิดรับจองแล้ว วันพักและข้อมูลผู้เข้าพักมาจากรายการจองเดิม
+
+เจ้าของรายการมาจาก session เท่านั้น ไม่รับ userId/filter อื่น ปฏิเสธ unknown query ด้วย 422 ไม่มี/หมดอายุ session ตอบ 401; cursor ที่ไม่มีหรือเป็นของคนอื่นตอบ 422 VALIDATION_ERROR เหมือนกัน ไม่เปิดเผยข้อมูลเจ้าของอื่น Pagination ใช้ timestamp เต็มความละเอียดใน PostgreSQL จึงไม่ทำรายการตกหล่นเมื่อสร้างในมิลลิวินาทีเดียวกัน การแบ่งหน้าไม่ใช่ snapshot; refresh เพื่อดูรายการที่สร้างใหม่
+
+ใช้ index `bookings_user_created_idx` เดิม ไม่ต้องเพิ่ม migration และไม่มี API แก้ไขวันพักในขอบเขตนี้
+
+## ยกเลิกการจอง
+
+`POST /bookings/:bookingId/cancel` · Login + allowed Origin · ไม่รับ body/query
+
+- `bookingId: string UUID`; เจ้าของมาจาก session เท่านั้น
+- ก่อนวันเข้าพักตาม Asia/Bangkok: เปลี่ยน confirmed → cancelled แบบ atomic เก็บ cancelled_at/updated_at เป็น TIMESTAMPTZ และคงประวัติ/request key
+- ยกเลิกแล้วส่งซ้ำ: 200 พร้อมรายการเดิม แม้เลยวันเข้าพักแล้ว ไม่เปลี่ยนเวลายกเลิกซ้ำ
+- รายการไม่มีหรือของคนอื่น: 404 BOOKING_NOT_FOUND เหมือนกัน; confirmed ที่ถึง/ผ่านวันเข้าพัก: 409 CANCELLATION_NOT_ALLOWED
+- ไม่มี session: 401; UUID/body/query ผิด: 422; Origin ผิด: 403; เกิน 10 attempts/min/user: 429 Retry-After (นับร่วมทุก session และผ่าน general quota ด้วย)
+- Success 200: `{data:{booking:Booking}}` ใช้ชนิดเดียวกับผลการจอง ไม่มี field ภายในเพิ่มเติม
+- คืนวันว่างเมื่อ UPDATE commit เพราะ exclusion constraint/index กรองเฉพาะ confirmed จึงจองวันเดิมใหม่ได้ ใช้ request key ใหม่สำหรับการจองใหม่; key เดิมยังคืนรายการ cancelled เดิม
+
+## Response privacy
+
+Account, room, calendar และ booking ใช้ allowlist ของ field ตาม OpenAPI ไม่ส่ง raw repository objects, password/hash, session token/hash, user_id ของ booking, request_key, SQL, role หรือ stack trace แม้ repository มี field เพิ่ม ส่วน error ที่ไม่คาดคิดตอบข้อความทั่วไปกับ requestId
+
+ข้อมูลการจองและข้อมูลติดต่อส่งให้เจ้าของที่ login เท่านั้น Calendar ส่งแค่ช่วงวัน ไม่ส่งตัวตนผู้เข้าพัก Response ใช้ no-store ทั้ง success/error Cookie เป็น HttpOnly
+
+ข้อมูลที่จำเป็นและส่งให้เบราว์เซอร์แล้วตรวจดูผ่าน Network ได้ จึงไม่ใช้การเข้ารหัส/ซ่อนหน้าเว็บแทนการตรวจสิทธิ์ ต้องป้องกันโดยไม่ส่งข้อมูลภายในตั้งแต่ Backend

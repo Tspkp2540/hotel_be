@@ -3,7 +3,10 @@ import { ApiError } from '../errors.js';
 import type { CreateBooking } from './validation.js';
 
 export type Booking = CreateBooking & { id: string; nights: number; status: 'confirmed' | 'cancelled'; createdAt: string };
+export type BookingPage = { bookings: Array<Booking & { roomName: string }>; nextCursor: string | null };
 export interface BookingRepository {
+  cancel(userId: string, bookingId: string, today: string, now: Date): Promise<Booking>;
+  listForUser(userId: string, limit: number, cursor?: string): Promise<BookingPage>;
   create(userId: string, input: CreateBooking, requestKey?: string): Promise<Booking>;
   findByRequest(userId: string, requestKey: string): Promise<Booking | null>;
 }
@@ -11,13 +14,43 @@ const selection = `id,room_id AS "roomId",to_char(check_in,'YYYY-MM-DD') AS "che
   to_char(check_out,'YYYY-MM-DD') AS "checkOut",check_out-check_in AS nights,
   guest_name AS "guestName",guest_phone AS "guestPhone",guest_email AS "guestEmail",status,created_at AS "createdAt"`;
 type Row = Omit<Booking, 'createdAt'> & { createdAt: Date };
-const serialize = (row: Row): Booking => ({ ...row, createdAt: row.createdAt.toISOString() });
+const serialize = (row: Row): Booking => ({ id:row.id,roomId:row.roomId,checkIn:row.checkIn,checkOut:row.checkOut,
+  guestName:row.guestName,guestPhone:row.guestPhone,guestEmail:row.guestEmail,nights:row.nights,status:row.status,createdAt:row.createdAt.toISOString() });
+export const publicBooking = (booking: Booking): Booking => ({ id:booking.id,roomId:booking.roomId,checkIn:booking.checkIn,checkOut:booking.checkOut,
+  guestName:booking.guestName,guestPhone:booking.guestPhone,guestEmail:booking.guestEmail,nights:booking.nights,status:booking.status,createdAt:booking.createdAt });
 export function checkReplay(booking: Booking, input: CreateBooking): Booking {
   if ((Object.keys(input) as Array<keyof CreateBooking>).some(key => booking[key] !== input[key])) throw new ApiError(409, 'IDEMPOTENCY_KEY_REUSED', 'รหัสคำขอนี้ถูกใช้กับข้อมูลอื่นแล้ว');
   return booking;
 }
 export class PgBookingRepository implements BookingRepository {
   constructor(private pool: Pool) {}
+  async cancel(userId: string, bookingId: string, today: string, now: Date): Promise<Booking> {
+    const result = await this.pool.query<Row>(`UPDATE bookings SET status='cancelled',
+      cancelled_at=COALESCE(cancelled_at,$4),updated_at=CASE WHEN status='confirmed' THEN $4 ELSE updated_at END
+      WHERE user_id=$1 AND id=$2 AND (status='cancelled' OR check_in>$3::date)
+      RETURNING ${selection}`, [userId,bookingId,today,now]);
+    if (result.rows[0]) return serialize(result.rows[0]);
+    const own = await this.pool.query('SELECT id FROM bookings WHERE user_id=$1 AND id=$2',[userId,bookingId]);
+    if (!own.rows.length) throw new ApiError(404,'BOOKING_NOT_FOUND','ไม่พบรายการจอง');
+    throw new ApiError(409,'CANCELLATION_NOT_ALLOWED','ยกเลิกได้ก่อนวันเข้าพักเท่านั้น');
+  }
+  async listForUser(userId: string, limit: number, cursor?: string): Promise<BookingPage> {
+    // Resolve the cursor inside the owner's rows; keep PostgreSQL timestamp precision.
+    if (cursor) {
+      const anchor = await this.pool.query('SELECT id FROM bookings WHERE user_id=$1 AND id=$2', [userId, cursor]);
+      if (!anchor.rows.length) throw new ApiError(422, 'VALIDATION_ERROR', 'ตำแหน่งรายการไม่ถูกต้อง กรุณาโหลดหน้าใหม่');
+    }
+    const result = await this.pool.query<Row & { roomName: string }>(`
+      SELECT history.*,rooms.name AS "roomName" FROM (
+        SELECT ${selection} FROM bookings WHERE user_id=$1
+          AND ($2::uuid IS NULL OR (created_at,id) <
+            (SELECT created_at,id FROM bookings WHERE user_id=$1 AND id=$2))
+        ORDER BY created_at DESC,id DESC LIMIT $3
+      ) history JOIN rooms ON rooms.id=history."roomId"
+      ORDER BY history."createdAt" DESC,history.id DESC`, [userId, cursor ?? null, limit + 1]);
+    const bookings = result.rows.slice(0, limit).map(row => ({ ...serialize(row), roomName: row.roomName }));
+    return { bookings, nextCursor: result.rows.length > limit ? bookings[bookings.length - 1].id : null };
+  }
   async findByRequest(userId: string, requestKey: string): Promise<Booking | null> {
     const result = await this.pool.query<Row>(`SELECT ${selection} FROM bookings WHERE user_id=$1 AND request_key=$2`, [userId, requestKey]);
     return result.rows[0] ? serialize(result.rows[0]) : null;

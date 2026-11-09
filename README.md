@@ -1,8 +1,8 @@
 # Booking Backend
 
-Node.js + TypeScript + Fastify + PostgreSQL 17.6 รองรับ auth, calendar, booking และ idempotent recovery สำหรับ [FUNCHZ assignment](https://github.com/FUNCHZ/fullstack-dev-assignment)
+Node.js + TypeScript + Fastify + PostgreSQL 17.6 รองรับ auth, โรงแรม/จังหวัด, calendar, booking/history/cancellation และ idempotent recovery สำหรับ [FUNCHZ assignment](https://github.com/FUNCHZ/fullstack-dev-assignment)
 
-[Frontend repository/วิธีเปิดหน้าเว็บ](https://github.com/Tspkp2540/frontend) · [Backend CI](https://github.com/Tspkp2540/hotel_be/actions/runs/42524914709) · [Integration 27 flows](https://github.com/Tspkp2540/frontend/actions/runs/42525412974)
+[Frontend](https://github.com/Tspkp2540/frontend) · [Testing/CI](docs/TESTING.md) · [API](docs/API.md)
 
 ## ติดตั้งและตรวจ
 
@@ -14,7 +14,7 @@ npm run test:db
 npm run test:integration
 ```
 
-Integration runner สร้าง PostgreSQL ชั่วคราวและลบเมื่อจบ ไม่ต้องมี Frontend checkout หรือ .env ผลล่าสุด 176 tests ผ่าน รายละเอียด [Testing](docs/TESTING.md)
+Integration runner สร้าง PostgreSQL ชั่วคราวและลบเมื่อจบ ไม่ต้องมี Frontend checkout หรือ .env ดูผลล่าสุดใน [Testing](docs/TESTING.md)
 
 ## เปิด API กับฐานข้อมูลของผู้ตรวจ
 
@@ -24,6 +24,7 @@ Integration runner สร้าง PostgreSQL ชั่วคราวและ�
 psql -X -v ON_ERROR_STOP=1 --single-transaction -f database/migrations/001_initial.sql
 psql -X -v ON_ERROR_STOP=1 --single-transaction -f database/migrations/002_rate_limit_buckets.sql
 psql -X -v ON_ERROR_STOP=1 --single-transaction -f database/migrations/003_booking_request_key.sql
+psql -X -v ON_ERROR_STOP=1 --single-transaction -f database/migrations/004_hotels.sql
 psql -X -v ON_ERROR_STOP=1 --single-transaction -f database/seeds/001_room.sql
 ```
 
@@ -33,7 +34,7 @@ Migration role ต้องติดตั้ง btree_gist ได้ รัน�
 npm run dev
 ```
 
-API เริ่มที่ http://localhost:3001 ทุก POST ต้องส่ง Origin ตรง FRONTEND_ORIGIN มีห้องตัวอย่าง 5 ห้อง ไม่มีบัญชีเริ่มต้น ให้สมัครสมาชิกผ่านหน้าเว็บหรือ API
+API เริ่มที่ http://localhost:3001 ทุก POST ต้องส่ง Origin ตรง FRONTEND_ORIGIN มีโรงแรมตัวอย่าง 8 แห่งใน 8 จังหวัด รวม 12 ห้อง ไม่มีบัญชีเริ่มต้น ให้สมัครสมาชิกผ่านหน้าเว็บหรือ API
 
 ## ข้อมูล DB อยู่ที่ไหน
 
@@ -50,7 +51,7 @@ Git เก็บ source, migrations และ seed ไม่รวมข้อ�
 |---|---|
 | npm run build | TypeScript → dist/ |
 | npm run docs:check | ตรวจ OpenAPI และ generated contract |
-| npm run test:mutation | 12/12 targeted mutants ในชุดที่กำหนด |
+| npm run test:mutation | 14/14 targeted mutants ในชุดที่กำหนด |
 | npm run test:classifier | 10 tests ของตัวแยกผล mutation |
 | npm run test:ci-guards | ป้องกัน focused tests ใน CI |
 
@@ -62,4 +63,4 @@ Production ใช้ npm run build แล้ว npm start หลัง HTTPS rev
 
 src/ API · tests/ unit/integration · database/ migrations/seed/DB tests · scripts/ test runners · docs/ contracts/schema/testing
 
-CI และ required check ชื่อ CI required บน main ตั้งแล้ว ดู [workflow](.github/workflows/ci.yml) ฟีเจอร์รอบนี้ไม่มี payment, admin หรือ API แก้ไข/ยกเลิกการจอง
+Required check ชื่อ CI required ดู [workflow](.github/workflows/ci.yml) ฟีเจอร์ล่าสุดยังไม่ได้commit/push ไม่มี payment, Admin หรือ API แก้ไขวันพัก

@@ -1,46 +1,38 @@
 # Backend testing
 
-รันจาก repository root หลัง npm ci ต้องมี Node.js ≥22.18.0 และ Docker Linux engine
+รันจาก Backend repository หลัง `npm ci` ต้องมี Node.js ≥22.18.0 และ Docker Linux engine
 
-| คำสั่ง | ผลล่าสุด |
+| คำสั่ง | ผลล่าสุดในเครื่อง |
 |---|---|
-| npm run test:integration | 176 tests ผ่าน PostgreSQL จริง; รวม OpenAPI/build/HTTP smoke |
-| npm run test:db | Migrations/seed/constraints/rollback/concurrency ผ่าน |
-| npm run test:mutation | 12/12 mutants จับได้; ไม่มี survived/invalid/timeout |
+| npm run test:integration | 186 tests; OpenAPI/build/HTTP smoke และ PostgreSQL จริง |
+| npm run test:db | Fresh/upgrade migrations, seed, constraints, rollback และ concurrency ผ่าน |
+| npm run test:mutation | 14/14 killed; ไม่มี survived/invalid/timeout |
 | npm run test:classifier | 10 tests ของตัวแยกผล mutation |
-| npm run test:ci-guards | ปฏิเสธ focused tests เมื่อ CI=true |
+| npm run test:ci-guards | ปฏิเสธ focused tests ใน CI |
 
-Coverage: Statements/Lines/Functions 100%, Branches 99.52% Gate รวม ≥90/90/90/85 และ branches ของ auth/date/calendar/booking service ต้อง 100% ยกเว้น server.ts bootstrap ที่ตรวจด้วย HTTP smoke แยก รายงานอยู่ที่ coverage/index.html
+Coverage: statements/lines/functions100%, branches99.56% Gates ≥90/90/90/85 และ branches ของ auth/date/calendar/booking service100% ไม่รวม server.ts bootstrap ซึ่งตรวจด้วย HTTP smoke
 
-## Mutation scope
+## ขอบเขตที่ตรวจ
 
-เป็น targeted catalog ของ date boundaries, auth expiry/password, lookup ownership และ idempotency ไม่ใช่ mutation coverage ทั้งโครงการ
+- Auth/session/Origin/rate limits และไม่เปิดเผยข้อมูลภายในใน response/log
+- วันที่ตามเวลาไทย วันติดกันไม่ชน ช่วงวันทับกันต้องแพ้ที่ DB
+- Concurrent booking: ผู้ commit ก่อนชนะ; อีกคำขอรอ lock และทำต่อได้เมื่อรายการแรก rollback
+- Idempotency/recovery แยกตามเจ้าของ; keyเดิม/ข้อมูลเดิมไม่สร้างรายการซ้ำ
+- ประวัติแบบ cursor ไม่ข้ามรายการระดับ microsecond; รวม cancelled/inactive room
+- ยกเลิกเฉพาะเจ้าของก่อนวันเข้าพัก; ส่งซ้ำคงเวลาเดิมและคืนวันว่าง
+- Migration004 เก็บห้องเดิม/ความสัมพันธ์ไว้; seed8โรงแรม/8จังหวัด/12ห้องรันซ้ำไม่ overwrite
+- OpenAPI1.4.0 รวม10 operations; HTTP responses ในชุดทดสอบตรวจตาม contract
 
-Runner สร้าง source copy ภายใน .mutation-work/, รัน baseline โดยไม่มี skip, แก้ทีละจุด และตรวจ SHA-256 ว่า source ต้นฉบับไม่เปลี่ยน ใช้ PostgreSQL แยกและไม่รับ TEST_DATABASE_URL ภายนอก Compile/import error, timeout และ skipped tests ไม่นับเป็น killed; survived/invalid/timeout ทำให้ exit nonzero
+## Mutation และรายงาน
 
-ดูรายการและกรองเคส:
+Catalogue14เคสครอบคลุม date boundaries, auth, ownership, idempotency และ cancellation ไม่ใช่ exhaustive mutation coverage Runner ใช้ source copy + PostgreSQL แยก รัน baseline และตรวจ SHA-256 ของต้นฉบับ Compile/import error, timeout และ skip ไม่นับเป็น killed
 
-```sh
-npm run test:mutation -- --list
-npm run test:mutation -- --id=BE-KEY-02
-```
+`npm run test:mutation -- --list` ดูรายการ; `-- --id=BE-CANCEL-01` เลือกรายเคส ผลอยู่ใน mutation-report/summary.json และ coverage/index.html
 
-ผลอยู่ที่ mutation-report/summary.json; การกรองเก็บใน mutation-report/<ID>/ ไม่ทับชุดเต็ม [Catalog](../scripts/mutation-catalog.mjs) และ [classifier](../scripts/mutation-results.mjs) อยู่ใน repository นี้
+## CI และสถานะส่งมอบ
 
-## CI และการส่งงาน
+[Workflow](../.github/workflows/ci.yml) ตรวจ DB/build/coverage/mutation และเก็บรายงาน7วัน Required checkชื่อ CI required
 
-[Workflow](../.github/workflows/ci.yml) ตรวจ DB, build, coverage, mutations และเก็บรายงาน 7 วัน Required check ชื่อ CI required บน main ตั้งแล้ว
+[หลักฐาน Backend CI เดิม](https://github.com/Tspkp2540/hotel_be/actions/runs/42524914709) และ [integration27 flowsเดิม](https://github.com/Tspkp2540/frontend/actions/runs/42525412974) ใช้ Backend0e56e76 / Frontendd5eabbd ฟีเจอร์ล่าสุดยังไม่ได้commit/push ผลนี้เป็นการตรวจlocal ไม่ใช่การรับรองCIของworking tree ปัจจุบัน
 
-หลักฐานตรวจบน GitHub วันที่ 9 พฤศจิกายน 2026:
-
-| การตรวจ | ผล |
-|---|---|
-| [Backend quality](https://github.com/Tspkp2540/hotel_be/actions/runs/42524914709) | ผ่าน รวม CI required |
-| [Frontend quality](https://github.com/Tspkp2540/frontend/actions/runs/42524975877) | ผ่าน รวม CI required |
-| [Paired integration](https://github.com/Tspkp2540/frontend/actions/runs/42525412974) | 27 browser flows ผ่าน |
-
-Integration ใช้ Backend commit [0e56e76](https://github.com/Tspkp2540/hotel_be/commit/0e56e76e1c553f9f132fb74e2a2047a840b21d07) และ Frontend commit [d5eabbd](https://github.com/Tspkp2540/frontend/commit/d5eabbd719951b9340deecddff01c93187be4b01) ผลเป็นหลักฐานของคู่ commits นี้ ไม่ใช่การรับรอง commits ในอนาคต
-
-ยังไม่มี deployment จริง, load/penetration test หรือ production migration ledger/runtime-role provisioning
-
-[API](API.md) · [Database/ER diagram](DATABASE.md) · [Security](../SECURITY.md)
+ยังไม่มี deploymentจริง, load/penetration test หรือ production migration ledger/runtime-role provisioning รายละเอียด [Security](../SECURITY.md) · [API](API.md) · [Schema](DATABASE.md)

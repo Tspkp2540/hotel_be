@@ -22,6 +22,21 @@ const input: CreateBooking = { roomId, checkIn: '2026-11-10', checkOut: '2026-11
 const hasher = { hash: async () => 'unused', verify: async () => false };
 
 class MemoryBooking implements BookingRepository, CalendarRepository {
+  async cancel(userId: string, id: string, today: string) {
+    const booking = this.bookings.find(b => b.id === id && b.userId === userId);
+    if (!booking) throw new ApiError(404,'BOOKING_NOT_FOUND','missing');
+    if (booking.status !== 'cancelled' && booking.checkIn <= today) throw new ApiError(409,'CANCELLATION_NOT_ALLOWED','late');
+    booking.status='cancelled';
+    for (const [key,record] of this.requests) if(record.id===id) this.requests.set(key,booking);
+    return booking;
+  }
+  async listForUser(userId: string, limit: number, cursor?: string) {
+    const rows = this.bookings.filter(b => b.userId === userId).sort((a,b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id));
+    const index = cursor ? rows.findIndex(b => b.id === cursor) : -1;
+    if (cursor && index < 0) throw new ApiError(422,'VALIDATION_ERROR','Invalid cursor');
+    const bookings = rows.slice(index + 1,index + 1 + limit).map(({userId: _owner,...b}) => ({...b,roomName:b.roomId === roomId ? 'Main' : 'Second'}));
+    return {bookings,nextCursor:rows.length > index + 1 + limit ? bookings[bookings.length-1].id : null};
+  }
   requests = new Map<string, Booking>();
   async findByRequest(userId: string, key: string) { return this.requests.get(`${userId}:${key}`) ?? null; }
   rooms = new Map([[roomId, true], [secondRoom, true]]);
@@ -29,7 +44,7 @@ class MemoryBooking implements BookingRepository, CalendarRepository {
   async create(userId: string, data: CreateBooking, key?: string): Promise<Booking> {
     if (!this.rooms.has(data.roomId)) throw new ApiError(404, 'ROOM_NOT_FOUND', 'missing');
     if (!this.rooms.get(data.roomId)) throw new ApiError(409, 'ROOM_UNAVAILABLE', 'closed');
-    if (this.bookings.some(b => b.roomId === data.roomId && b.checkIn < data.checkOut && b.checkOut > data.checkIn)) throw { code: '23P01', constraint: 'prevent_overlapping_bookings' };
+    if (this.bookings.some(b => b.status === 'confirmed' && b.roomId === data.roomId && b.checkIn < data.checkOut && b.checkOut > data.checkIn)) throw { code: '23P01', constraint: 'prevent_overlapping_bookings' };
     const booking: Booking = { ...data, id: randomUUID(), nights: (Date.parse(data.checkOut)-Date.parse(data.checkIn))/86400000, status: 'confirmed', createdAt: '2026-11-06T00:00:00.000Z' };
     this.bookings.push({ ...booking, userId }); if (key) this.requests.set(`${userId}:${key}`, booking); return booking;
   }
@@ -50,7 +65,7 @@ describe('Booking API (memory or actual PostgreSQL)', () => {
       await pool.query('TRUNCATE bookings,sessions,users,rooms CASCADE');
       await pool.query("INSERT INTO users(id,email,password_hash,full_name) VALUES ($1,'owner-a@example.com','fixture','Owner A'),($2,'owner-b@example.com','fixture','Owner B')", [userA,userB]);
       for (const [id,token] of [[userA,tokenA],[userB,tokenB],[userA,tokenA2]]) await pool.query("INSERT INTO sessions(user_id,token_hash,created_at,expires_at) VALUES($1,$2,'2026-11-01T00:00:00Z','2026-11-08T00:00:00Z')", [id, tokenHash(token)]);
-      await pool.query("INSERT INTO rooms(id,name) VALUES($1,'Main'),($2,'Second')",[roomId,secondRoom]);
+      await pool.query("INSERT INTO rooms(id,name,hotel_id) VALUES($1,'Main','80000000-0000-4000-8000-000000000001'),($2,'Second','80000000-0000-4000-8000-000000000001')",[roomId,secondRoom]);
       repository = new PgBookingRepository(pool); calendar = new PgCalendarRepository(pool); auth = new PgAuthRepository(pool);
     } else {
       memory = new MemoryBooking(); repository = memory; calendar = memory;
@@ -68,6 +83,85 @@ describe('Booking API (memory or actual PostgreSQL)', () => {
   const keyed = (payload: unknown = input, requestKey = key, token = tokenA) => app.inject({ method:'POST', url:'/api/v1/bookings', headers:{...headers,'idempotency-key':requestKey}, payload:payload as object, cookies:{booking_session:token} });
   const lookup = (requestKey = key, token: string | undefined = tokenA, query = '') => app.inject({ method:'GET', url:`/api/v1/bookings/requests/${requestKey}${query}`, cookies:token ? {booking_session:token} : undefined });
 
+  const cancel = (id: string, token = tokenA, extra = {}) => app.inject({method:'POST',url:'/api/v1/bookings/'+id+'/cancel',headers,cookies:token ? {booking_session:token}:undefined,...extra});
+  const list = (query = '', token = tokenA) => app.inject({method:'GET',url:'/api/v1/bookings'+query,cookies: token ? {booking_session:token} : undefined});
+  it('cancels only an owned booking, keeps history and releases dates',async()=>{
+    const original=(await keyed()).json().data.booking;
+    expect((await cancel(original.id,tokenB)).statusCode).toBe(404);
+    expect((await cancel(missingId)).json().error.code).toBe('BOOKING_NOT_FOUND');
+    expect((await cancel(original.id,'')).statusCode).toBe(401);
+    const result=await cancel(original.id); expect(result.statusCode).toBe(200); expect(result.json().data.booking).toEqual({...original,status:'cancelled'});
+    const before=pool ? (await pool.query('SELECT cancelled_at,updated_at FROM bookings WHERE id=$1',[original.id])).rows[0] : null;
+    expect((await cancel(original.id)).json()).toEqual(result.json());
+    if(pool) expect((await pool.query('SELECT cancelled_at,updated_at FROM bookings WHERE id=$1',[original.id])).rows[0]).toEqual(before);
+    expect((await lookup()).json().data.booking.status).toBe('cancelled');
+    expect((await keyed()).json().data.booking.status).toBe('cancelled');
+    expect((await post(input,tokenB)).statusCode).toBe(201); expect(await count()).toBe(2);
+    expect((await new BookingService(repository,()=>new Date('2026-11-11T00:00:00Z')).cancel(userA,original.id)).status).toBe('cancelled');
+  });
+  it('uses Bangkok midnight as the cancellation boundary',async()=>{
+    const original=(await post({...input,checkIn:'2026-11-07',checkOut:'2026-11-08'})).json().data.booking;
+    now=new Date('2026-11-06T16:59:59.999Z'); expect((await cancel(original.id)).statusCode).toBe(200);
+    const another=(await post({...input,roomId:secondRoom,checkIn:'2026-11-07',checkOut:'2026-11-08'})).json().data.booking;
+    now=new Date('2026-11-06T17:00:00.000Z'); expect((await cancel(another.id)).json().error.code).toBe('CANCELLATION_NOT_ALLOWED');
+  });
+  it('rejects invalid cancellation shapes and cross-site requests without changing status',async()=>{
+    const original=(await post()).json().data.booking;
+    expect((await cancel('invalid')).statusCode).toBe(422);
+    expect((await cancel(original.id,tokenA,{payload:{}})).statusCode).toBe(422);
+    expect((await cancel(original.id,tokenA,{url:'/api/v1/bookings/'+original.id+'/cancel?userId='+userB})).statusCode).toBe(422);
+    expect((await cancel(original.id,tokenA,{headers:{origin:'https://foreign.example'}})).statusCode).toBe(403);
+    expect((await list()).json().data.bookings[0].status).toBe('confirmed');
+  });
+  it('limits cancellation across sessions and handles concurrent retries',async()=>{
+    const original=(await post()).json().data.booking;
+    const results=await Promise.all([cancel(original.id),cancel(original.id,tokenA2)]);
+    expect(results.map(r=>r.statusCode)).toEqual([200,200]);
+    for(let i=0;i<8;i++) expect((await cancel(original.id)).statusCode).toBe(200);
+    const limited=await cancel(original.id,tokenA2); expect(limited.statusCode).toBe(429); expect(limited.headers['retry-after']).toBe('60');
+  });
+  it('does not expose raw persistence errors',async()=>{
+    vi.spyOn(repository,'cancel').mockRejectedValue(new Error('SELECT secret FROM database; password=private'));
+    const response=await cancel(missingId); expect(response.statusCode).toBe(500); expect(response.body).not.toMatch(/SELECT|private|stack|password/);
+  });
+  it('filters unexpected internal booking fields at all response boundaries',async()=>{
+    const secret={userId:userB,requestKey:key,passwordHash:'private-hash',sql:'private-sql'};
+    const record={...input,id:missingId,nights:2,status:'confirmed' as const,createdAt:'2026-11-06T00:00:00.000Z',...secret};
+    vi.spyOn(repository,'create').mockResolvedValue(record); vi.spyOn(repository,'findByRequest').mockResolvedValue(record);
+    vi.spyOn(repository,'listForUser').mockResolvedValue({bookings:[{...record,roomName:'Main'}],nextCursor:null});
+    vi.spyOn(repository,'cancel').mockResolvedValue({...record,status:'cancelled'});
+    for(const response of [await post(),await lookup(),await list(),await cancel(missingId)]) {
+      expect(response.statusCode).toBeLessThan(300);
+      const body=response.json().data; const booking=body.booking ?? body.bookings[0];
+      for(const key of Object.keys(secret)) expect(booking).not.toHaveProperty(key);
+    }
+  });
+  it('requires login, rejects invalid filters and returns an empty owner history', async () => {
+    expect((await list('', '')).statusCode).toBe(401);
+    expect((await list()).json().data).toEqual({bookings:[],nextCursor:null});
+    for (const query of ['?userId='+userB,'?limit=0','?limit=51','?limit=1.5','?limit=01','?cursor=bad','?limit=1&limit=2']) expect((await list(query)).statusCode).toBe(422);
+  });
+  it('paginates only owned bookings without duplicates and rejects foreign cursors', async () => {
+    const first = (await post()).json().data.booking;
+    const second = (await post({...input,checkIn:'2026-11-12',checkOut:'2026-11-14'})).json().data.booking;
+    const foreign = (await post({...input,roomId:secondRoom},tokenB)).json().data.booking;
+    const all = (await list()).json().data;
+    expect(all.bookings).toHaveLength(2);
+    expect(new Set(all.bookings.map((b: Booking)=>b.id))).toEqual(new Set([first.id,second.id]));
+    expect(all.bookings[0].roomName).toBe('Main');
+    const page1=(await list('?limit=1')).json().data;
+    expect(page1.nextCursor).toBe(page1.bookings[0].id);
+    const page2=(await list('?limit=1&cursor='+page1.nextCursor)).json().data;
+    expect(page2.nextCursor).toBeNull(); expect(page2.bookings[0].id).not.toBe(page1.bookings[0].id);
+    expect((await list('?cursor='+foreign.id)).statusCode).toBe(422);
+    expect((await list('?cursor='+missingId)).statusCode).toBe(422);
+    expect((await list('',tokenB)).json().data.bookings.map((b:Booking)=>b.id)).toEqual([foreign.id]);
+    if(pool) {
+      await pool.query("UPDATE bookings SET status='cancelled',cancelled_at=now() WHERE id=$1",[first.id]);
+      await pool.query('UPDATE rooms SET is_active=false WHERE id=$1',[roomId]);
+      expect((await list()).json().data.bookings.find((b:Booking)=>b.id===first.id).status).toBe('cancelled');
+    }
+  });
   it('replays normalized requests across sessions without creating another booking', async () => {
     const first = await keyed(); const replay = await keyed({...input,roomId:roomId.toUpperCase(),guestName:' Guest Person ',guestEmail:'GUEST@example.com'},key.toUpperCase(),tokenA2);
     expect(first.statusCode).toBe(201); expect(replay.statusCode).toBe(201); expect(replay.json()).toEqual(first.json()); expect(await count()).toBe(1);
@@ -283,7 +377,7 @@ describe('Booking validation and service boundaries', () => {
     await expect(service.create(userA,{...input,checkIn:today,checkOut:tomorrow})).rejects.toBe(error);
   });
   it('does not call persistence when business validation fails', async () => {
-    const repository = { create:vi.fn(), findByRequest:vi.fn() };
+    const repository = { create:vi.fn(), findByRequest:vi.fn(), listForUser:vi.fn(), cancel:vi.fn() };
     const service = new BookingService(repository,()=>new Date('2026-11-05T17:00:00Z'));
     await expect(service.create(userA,{...input,checkIn:'2026-11-05'})).rejects.toMatchObject({status:422}); expect(repository.create).not.toHaveBeenCalled();
   });

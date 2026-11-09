@@ -2,7 +2,7 @@
 
 PostgreSQL 17.6 · Schema `public` · Business timezone `Asia/Bangkok`
 
-Migrations: [001 — business tables](../database/migrations/001_initial.sql), [002 — rate limits](../database/migrations/002_rate_limit_buckets.sql), [003 — booking request key](../database/migrations/003_booking_request_key.sql)  
+Migrations: [001 — business tables](../database/migrations/001_initial.sql), [002 — rate limits](../database/migrations/002_rate_limit_buckets.sql), [003 — booking request key](../database/migrations/003_booking_request_key.sql), [004 — hotels](../database/migrations/004_hotels.sql)
 Setup: [Database README](../database/README.md) · ผลตรวจ: [งาน 02](TESTING.md), [งาน 06](TESTING.md)
 
 ## ER Diagram
@@ -11,6 +11,7 @@ Setup: [Database README](../database/README.md) · ผลตรวจ: [งา�
 erDiagram
     users ||--o{ sessions : "has / DELETE CASCADE"
     users ||--o{ bookings : "creates / DELETE RESTRICT"
+    hotels ||--o{ rooms : "contains / DELETE RESTRICT"
     rooms ||--o{ bookings : "receives / DELETE RESTRICT"
 
     rate_limit_buckets {
@@ -36,7 +37,15 @@ erDiagram
         TIMESTAMPTZ created_at "NOT NULL; default CURRENT_TIMESTAMP"
     }
 
+    hotels {
+        UUID id PK "NOT NULL; default gen_random_uuid()"
+        VARCHAR(150) name "NOT NULL; nonempty after trim"
+        VARCHAR(100) province "NOT NULL; nonempty after trim"
+        TIMESTAMPTZ created_at "NOT NULL; default CURRENT_TIMESTAMP"
+    }
+
     rooms {
+        UUID hotel_id FK "NOT NULL; references hotels.id; no default"
         UUID id PK "NOT NULL; default gen_random_uuid()"
         VARCHAR(100) name "NOT NULL; nonempty after trim"
         BOOLEAN is_active "NOT NULL; default TRUE"
@@ -61,7 +70,7 @@ erDiagram
     }
 ```
 
-มี 4 business tables และ 1 infrastructure table โดย rate_limit_buckets ไม่มี foreign key
+มี 5 business tables และ 1 infrastructure table โดย rate_limit_buckets ไม่มี foreign key
 
 - User หนึ่งบัญชีมีหลาย sessions/bookings
 - Booking แต่ละรายการมี user และ room อย่างละหนึ่ง
@@ -94,12 +103,24 @@ erDiagram
 
 Token มาจากข้อมูลสุ่ม 32 bytes ส่งให้ browser ผ่าน cookie ฐานข้อมูลเก็บเฉพาะ hash Session อายุคงที่ 7 วัน และใช้ไม่ได้เมื่อ now >= expires_at
 
+### hotels
+
+| Column | PostgreSQL type | Default | Constraint / ความหมาย |
+|---|---|---|---|
+| id | UUID | gen_random_uuid() | PK |
+| name | VARCHAR(150) | — | NOT NULL; ไม่ว่างหลัง btrim |
+| province | VARCHAR(100) | — | NOT NULL; ไม่ว่างหลัง btrim; ชื่อจังหวัดภาษาไทย |
+| created_at | TIMESTAMPTZ | CURRENT_TIMESTAMP | NOT NULL |
+
+โรงแรมหนึ่งแห่งมีหลายห้อง ชื่อโรงแรม/จังหวัดเก็บที่ hotels ไม่ทำซ้ำใน rooms โรงแรมถูกลบไม่ได้เมื่อมีห้องอ้างอิง
+
 ### rooms
 
 | Column | PostgreSQL type | Default | Constraint / ความหมาย |
 |---|---|---|---|
 | id | UUID | gen_random_uuid() | PK |
 | name | VARCHAR(100) | — | ไม่ว่างหลัง trim; ไม่บังคับ unique |
+| hotel_id | UUID | — | NOT NULL; FK hotels.id; ON DELETE RESTRICT; index rooms_hotel_idx |
 | is_active | BOOLEAN | TRUE | เปิดรับจองใหม่ |
 | created_at | TIMESTAMPTZ | CURRENT_TIMESTAMP | เวลาสร้าง |
 | updated_at | TIMESTAMPTZ | CURRENT_TIMESTAMP | Service อัปเดตเมื่อแก้ข้อมูล |
@@ -248,7 +269,7 @@ Source: [Booking repository](../src/booking/repository.ts)
 
 Apply 001 → 002 → 003 → seed สำหรับ DB ใหม่ ส่วน DB เดิมให้ apply เฉพาะ migration ที่ค้าง 003 เพิ่ม nullable UUID และ unique constraint โดยไม่แก้ booking เดิม ห้ามแก้ migration ที่ใช้ไปแล้วเพื่ออัปเกรด
 
-Seed ห้องตัวอย่าง 5 ห้อง: บ้านพักหลัก, ห้องสวน, ห้องระเบียง, ห้องแสงเช้า และห้องมุมสงบ UUID ตามลำดับคือ 7c71298a-ef46-457c-ab5e-9edb238a54e5 ถึง 7c71298a-ef46-457c-ab5e-9edb238a54e9 ใช้ ON CONFLICT(id) DO NOTHING ไม่เพิ่มห้องซ้ำหรือเปิด inactive room กลับเอง ไม่มี seed users/passwords/bookings
+Seed ปัจจุบันรวม12ห้องใน8โรงแรม/8จังหวัด โดยคง5ห้องเดิมไว้: บ้านพักหลัก, ห้องสวน, ห้องระเบียง, ห้องแสงเช้า และห้องมุมสงบ UUID ตามลำดับคือ 7c71298a-ef46-457c-ab5e-9edb238a54e5 ถึง 7c71298a-ef46-457c-ab5e-9edb238a54e9 ใช้ ON CONFLICT(id) DO NOTHING ไม่เพิ่มห้องซ้ำหรือเปิด inactive room กลับเอง ไม่มี seed users/passwords/bookings
 
 Migration role ต้อง provision btree_gist ได้ Runtime-role provisioning และ production ledger/checksum/locking เป็นงาน production ที่ยังไม่ได้จัดทำ
 
@@ -260,3 +281,21 @@ Migration role ต้อง provision btree_gist ได้ Runtime-role provisio
 - Tests ใช้ฐานข้อมูล disposable แยกจากข้อมูลใช้งาน
 
 คำสั่งและผลจริง: [งาน 02](TESTING.md), [งาน 05](TESTING.md), [งาน 06](TESTING.md)
+
+## Owner booking history
+
+`GET /api/v1/bookings` อ่านจาก bookings JOIN rooms โดยกรอง user_id จาก session เสมอ ใช้ index เดิม `bookings_user_created_idx(user_id,created_at DESC,id DESC)` แบ่งหน้าแบบ cursor UUID แล้วอ่าน `(created_at,id)` จากฐานข้อมูลโดยตรงเพื่อรักษาความละเอียด microsecond ไม่มี DDL/migration เพิ่ม และไม่เก็บประวัติซ้ำใน browser
+
+แสดงห้อง inactive และรายการ cancelled ได้ ชื่อห้องเป็นชื่อปัจจุบัน ไม่ใช่ snapshot ณ วันจอง ส่วนวันพัก/ผู้เข้าพักอ่านจาก bookings เดิม ไม่เปิดเผย user_id หรือ request_key ใน response
+
+## Cancellation
+
+ไม่เพิ่ม migration: ใช้ status, cancelled_at, updated_at และ exclusion constraint เดิม ยกเลิกด้วย atomic UPDATE ที่กรอง user_id + id + (cancelled หรือ check_in > วันปัจจุบันเวลาไทย) Concurrent retries ปลอดภัยจาก row lock ของ PostgreSQL ไม่ลบแถว เวลา cancelled_at คงเดิมเมื่อส่งซ้ำ และไม่เปิดเผย timestamp ภายในนี้ใน response
+
+## Hotel catalogue และการค้นหา
+
+Migration004 เพิ่ม hotels และ FK rooms.hotel_id ห้องเดิมทั้งหมดคง ID/การจองไว้และย้ายเข้าบ้านพักเชียงใหม่ รัน seed เพิ่มได้โดยไม่ overwrite ชื่อ/สถานะเดิม
+
+ข้อมูลสมมติ8โรงแรม/8จังหวัด: เชียงใหม่, เชียงราย, กรุงเทพมหานคร, พระนครศรีอยุธยา, ชลบุรี, ภูเก็ต, กระบี่, ขอนแก่น รวม12ห้อง ไม่มีข้อมูลโรงแรมจริงหรือราคาสมมติ จังหวัดใช้ VARCHAR(100) ไม่ใช้ enum เพื่อรองรับข้อมูลเพิ่มในอนาคต การเพิ่มโรงแรม/ห้องทำผ่าน seed/DB ยังไม่มี Admin CRUD
+
+GET rooms ส่ง id/name/hotelName/province เฉพาะ active room เรียง created_at/id ตามเดิม หน้าเว็บค้นหาข้อมูลทั้งชุดที่ได้จาก API แบบ local โดยรวมชื่อโรงแรม ชื่อห้อง และจังหวัด ทุกคำต้องพบ (AND) และ province ต้องตรงกัน ไม่มี regex/SQL execution จำนวนข้อมูลตัวอย่างเล็กจึงยังไม่เพิ่ม server search/pagination

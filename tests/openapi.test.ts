@@ -11,8 +11,8 @@ const spec=JSON.parse(readFileSync(new URL('../openapi.json',import.meta.url),'u
 describe('OpenAPI contract',()=>{
   it('validates the complete document and contains seven core operations plus request recovery',async()=>{
     const document=await SwaggerParser.validate(structuredClone(spec));
-    expect(Object.values(document.paths!).flatMap(path=>Object.keys(path!))).toHaveLength(8);
-    expect(Object.values(document.paths!).flatMap(path=>Object.values(path!).map((op:any)=>op.operationId))).toEqual(['register','login','logout','me','rooms','calendar','createBooking','bookingRequest']);
+    expect(Object.values(document.paths!).flatMap(path=>Object.keys(path!))).toHaveLength(10);
+    expect(Object.values(document.paths!).flatMap(path=>Object.values(path!).map((op:any)=>op.operationId))).toEqual(['register','login','logout','me','rooms','calendar','createBooking','myBookings','bookingRequest','cancelBooking']);
   });
   it('matches the deterministic committed generator output',()=>{
     expect(()=>execFileSync(process.execPath,['scripts/generate-openapi.mjs','--check'],{cwd:new URL('../',import.meta.url),stdio:'pipe'})).not.toThrow();

@@ -55,7 +55,7 @@ SELECT pg_temp.expect_error($q$SELECT pg_temp.book('2030-02-01','2030-02-02','90
 SELECT pg_temp.book('2030-01-08','2030-01-10');
 SELECT pg_temp.book('2030-01-12','2030-01-14');
 SELECT pg_temp.book('2030-01-10','2030-01-12','7c71298a-ef46-457c-ab5e-9edb238a54e5','cancelled');
-INSERT INTO rooms(id,name) VALUES ('20000000-0000-4000-8000-000000000001','Second room');
+INSERT INTO rooms(id,name,hotel_id) VALUES ('20000000-0000-4000-8000-000000000001','Second room','80000000-0000-4000-8000-000000000001');
 SELECT pg_temp.book('2030-01-10','2030-01-12','20000000-0000-4000-8000-000000000001');
 SELECT pg_temp.assert_true((SELECT count(*)=5 FROM bookings), 'only valid bookings persisted');
 SELECT pg_temp.assert_true((SELECT count(*)=1 FROM bookings WHERE room_id='7c71298a-ef46-457c-ab5e-9edb238a54e5' AND status='confirmed' AND daterange(check_in,check_out,'[)') && daterange('2030-01-10'::date,'2030-01-12'::date,'[)')), 'calendar excludes touching boundaries and cancelled bookings');
@@ -82,7 +82,7 @@ SELECT pg_temp.assert_true((SELECT count(*)=1 FROM bookings WHERE check_in='2030
 ROLLBACK;
 SELECT pg_temp.assert_true((SELECT count(*)=2 FROM information_schema.columns WHERE table_schema='public' AND table_name IN ('users','sessions','rooms','bookings') AND is_nullable='YES'), 'only cancelled_at and request_key are nullable');
 SELECT pg_temp.assert_true((SELECT is_nullable='YES' FROM information_schema.columns WHERE table_schema='public' AND table_name='bookings' AND column_name='cancelled_at'), 'cancelled_at is nullable');
-SELECT pg_temp.assert_true((SELECT count(*)=29 FROM information_schema.columns WHERE table_schema='public' AND table_name IN ('users','sessions','rooms','bookings')), 'all 29 columns exist');
+SELECT pg_temp.assert_true((SELECT count(*)=30 FROM information_schema.columns WHERE table_schema='public' AND table_name IN ('users','sessions','rooms','bookings')), 'all 30 columns exist');
 SELECT pg_temp.assert_true((SELECT count(*)=4 FROM information_schema.columns WHERE table_schema='public' AND table_name IN ('users','sessions','rooms','bookings') AND column_name='id' AND data_type='uuid' AND column_default LIKE '%gen_random_uuid%'), 'UUID defaults on all primary IDs');
 SELECT pg_temp.assert_true((SELECT count(*)=2 FROM information_schema.columns WHERE table_schema='public' AND table_name='bookings' AND column_name IN ('check_in','check_out') AND data_type='date'), 'booking dates use DATE');
 SELECT pg_temp.assert_true((SELECT count(*)=9 FROM information_schema.columns WHERE table_schema='public' AND table_name IN ('users','sessions','rooms','bookings') AND data_type='timestamp with time zone'), 'all nine timestamps use TIMESTAMPTZ');
@@ -96,7 +96,7 @@ BEGIN;
 INSERT INTO users(id,email,password_hash,full_name) VALUES
 ('40000000-0000-4000-8000-000000000001','key-a@example.com','fixture','Key A'),
 ('40000000-0000-4000-8000-000000000002','key-b@example.com','fixture','Key B');
-INSERT INTO rooms(id,name) VALUES('40000000-0000-4000-8000-000000000003','Key test');
+INSERT INTO rooms(id,name,hotel_id) VALUES('40000000-0000-4000-8000-000000000003','Key test','80000000-0000-4000-8000-000000000001');
 INSERT INTO bookings(user_id,room_id,check_in,check_out,guest_name,guest_phone,guest_email,request_key) VALUES
 ('40000000-0000-4000-8000-000000000001','40000000-0000-4000-8000-000000000003','2035-01-01','2035-01-02','Guest','+66812345678','guest@example.com','abcdef00-0000-4000-8000-000000000001');
 SELECT pg_temp.expect_error($q$INSERT INTO bookings(user_id,room_id,check_in,check_out,guest_name,guest_phone,guest_email,request_key) VALUES('40000000-0000-4000-8000-000000000001','40000000-0000-4000-8000-000000000003','2035-01-03','2035-01-04','Guest','+66812345678','guest@example.com','abcdef00-0000-4000-8000-000000000001')$q$,'23505','bookings_user_request_key_unique');
@@ -108,3 +108,9 @@ SELECT pg_temp.assert_true((SELECT count(*)=4 FROM bookings WHERE room_id='40000
 ROLLBACK;
 SELECT 'PASS booking request key uniqueness and legacy compatibility';
 
+
+SELECT pg_temp.expect_error($q$INSERT INTO rooms(name,hotel_id) VALUES('Orphan','99999999-0000-4000-8000-000000000001')$q$,'23503','rooms_hotel_fk');
+SELECT pg_temp.expect_error($q$INSERT INTO hotels(name,province) VALUES('','เชียงใหม่')$q$,'23514','hotels_name_check');
+SELECT pg_temp.expect_error($q$INSERT INTO hotels(name,province) VALUES('Test','   ')$q$,'23514','hotels_province_check');
+SELECT pg_temp.expect_error($q$DELETE FROM hotels WHERE id='80000000-0000-4000-8000-000000000001'$q$,'23503','rooms_hotel_fk');
+SELECT pg_temp.assert_true((SELECT count(DISTINCT province)=8 FROM hotels),'eight provinces seeded');

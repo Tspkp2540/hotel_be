@@ -48,13 +48,17 @@ try {
   sql('CREATE TABLE schema_migrations (version TEXT PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP);');
   for (const name of readdirSync(resolve(root, 'migrations')).filter(n => n.endsWith('.sql')).sort()) {
     assert.match(name, /^\d+_[a-z_]+\.sql$/);
+    if(name==='004_hotels.sql') sql("INSERT INTO rooms(id,name) VALUES('90000000-0000-4000-8000-000000000099','Legacy room');");
     sql(`BEGIN;\n${readFileSync(resolve(root, 'migrations', name), 'utf8')}\nINSERT INTO schema_migrations(version) VALUES ('${name}');\nCOMMIT;`);
   }
+  assert.equal(sql("SELECT hotel_id::text FROM rooms WHERE id='90000000-0000-4000-8000-000000000099';"),'80000000-0000-4000-8000-000000000001');
+  sql("DELETE FROM rooms WHERE id='90000000-0000-4000-8000-000000000099';");
+  console.log('PASS existing rooms preserved by hotel migration');
   const seed = readFileSync(resolve(root, 'seeds/001_room.sql'), 'utf8');
   sql(seed); sql(seed);
-  assert.equal(sql('SELECT count(*) FROM rooms;'), '5');
+  assert.equal(sql('SELECT count(*) FROM rooms;'), '12');
   sql("UPDATE rooms SET is_active = FALSE;" + seed);
-  assert.equal(sql('SELECT count(*) FROM rooms WHERE is_active=FALSE;'), '5');
+  assert.equal(sql('SELECT count(*) FROM rooms WHERE is_active=FALSE;'), '12');
   sql('UPDATE rooms SET is_active = TRUE;');
   console.log('PASS migration from empty DB and idempotent, non-overwriting seed');
   console.log(sql(readFileSync(resolve(root, 'tests/constraints.sql'), 'utf8')));

@@ -62,7 +62,7 @@ try {
   if (login.status !== 200 || !cookie) throw new Error('Real HTTP login failed');
   const roomsResponse = await fetch(address + '/api/v1/rooms', { headers: { cookie } });
   const rooms = (await roomsResponse.json()).data.rooms;
-  if (roomsResponse.status !== 200 || rooms.length !== 5) throw new Error('Real HTTP rooms failed');
+  if (roomsResponse.status !== 200 || rooms.length !== 12) throw new Error('Real HTTP rooms failed');
   const calendarResponse = await fetch(address + `/api/v1/rooms/${rooms[0].id}/calendar?from=2026-11-01&to=2026-12-01`, { headers: { cookie } });
   const calendar = (await calendarResponse.json()).data;
   if (calendarResponse.status !== 200 || calendar.bookedRanges.length !== 0 || calendar.bookingRules.maxNights !== 30) throw new Error('Real HTTP calendar failed');

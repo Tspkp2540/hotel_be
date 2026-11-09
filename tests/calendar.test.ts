@@ -19,7 +19,7 @@ const publicUser = { id: userId, email: 'private@example.com', fullName: 'Privat
 const hasher = { hash: async () => 'unused-fixture', verify: async () => false };
 
 class MemoryCalendar implements CalendarRepository {
-  rooms = [{ id: otherId, name: 'Second room' }, { id: roomId, name: 'บ้านพักหลัก' }];
+  rooms = [{ id: otherId, name: 'Second room',hotelName:'บ้านพักเชียงใหม่',province:'เชียงใหม่' }, { id: roomId, name: 'บ้านพักหลัก',hotelName:'บ้านพักเชียงใหม่',province:'เชียงใหม่' }];
   bookings: Array<BookedRange & { roomId: string; status: string }> = [];
   async listActiveRooms() { return this.rooms; }
   async isRoomActive(id: string) { return this.rooms.some(room => room.id === id); }
@@ -44,10 +44,10 @@ describe('Rooms/calendar API contract (memory or PostgreSQL)', () => {
       await pool.query('TRUNCATE bookings,sessions,users,rooms CASCADE');
       await pool.query('INSERT INTO users(id,email,password_hash,full_name) VALUES($1,$2,$3,$4)', [userId, publicUser.email, 'unused-fixture', publicUser.fullName]);
       await pool.query('INSERT INTO sessions(user_id,token_hash,created_at,expires_at) VALUES($1,$2,$3,$4)', [userId, tokenHash(token), '2026-11-01T00:00:00Z', '2026-11-08T00:00:00Z']);
-      await pool.query(`INSERT INTO rooms(id,name,is_active,created_at) VALUES
-        ($1,'บ้านพักหลัก',true,'2026-10-01T00:00:00Z'),
-        ($2,'Second room',true,'2026-10-01T00:00:00Z'),
-        ($3,'Inactive room',false,'2026-09-01T00:00:00Z')`, [roomId, otherId, inactiveId]);
+      await pool.query(`INSERT INTO rooms(id,name,is_active,created_at,hotel_id) VALUES
+        ($1,'บ้านพักหลัก',true,'2026-10-01T00:00:00Z','80000000-0000-4000-8000-000000000001'),
+        ($2,'Second room',true,'2026-10-01T00:00:00Z','80000000-0000-4000-8000-000000000001'),
+        ($3,'Inactive room',false,'2026-09-01T00:00:00Z','80000000-0000-4000-8000-000000000001')`, [roomId, otherId, inactiveId]);
       repository = new PgCalendarRepository(pool);
       auth = new PgAuthRepository(pool);
     } else {
@@ -69,7 +69,7 @@ describe('Rooms/calendar API contract (memory or PostgreSQL)', () => {
   it('lists only active rooms in stable created_at/id order with exact public fields', async () => {
     const response = await app.inject({ url: '/api/v1/rooms', cookies });
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({ data: { rooms: [{ id: otherId, name: 'Second room' }, { id: roomId, name: 'บ้านพักหลัก' }] } });
+    expect(response.json()).toEqual({ data: { rooms: [{ id: otherId, name: 'Second room',hotelName:'บ้านพักเชียงใหม่',province:'เชียงใหม่' }, { id: roomId, name: 'บ้านพักหลัก',hotelName:'บ้านพักเชียงใหม่',province:'เชียงใหม่' }] } });
     expect(response.headers['cache-control']).toBe('no-store');
   });
   it('returns empty rooms if no active rooms exist', async () => {

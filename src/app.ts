@@ -4,14 +4,14 @@ import cors from '@fastify/cors';
 import { randomUUID } from 'node:crypto';
 import { ApiError } from './errors.js';
 import { AuthService, passwordHasher, type PasswordHasher } from './auth/service.js';
-import type { AuthRepository } from './auth/repository.js';
+import { publicUser, type AuthRepository } from './auth/repository.js';
 import { validate, registerSchema, loginSchema, emptyQuery } from './auth/validation.js';
 import type { CalendarRepository } from './calendar/repository.js';
 import { CalendarService, type BookingRules } from './calendar/service.js';
 import { calendarQuery, roomParams } from './calendar/dates.js';
-import type { BookingRepository } from './booking/repository.js';
+import { publicBooking, type BookingRepository } from './booking/repository.js';
 import { BookingService } from './booking/service.js';
-import { createBookingSchema, requestKeySchema, requestKeyParams } from './booking/validation.js';
+import { createBookingSchema, requestKeySchema, requestKeyParams, bookingListQuery, bookingParams } from './booking/validation.js';
 import { MemoryRateLimitStore, RateLimiter, RateLimitError, type RateLimitStore } from './security/rate-limit.js';
 import { validateOrigin, parseTrustedProxies } from './security/config.js';
 
@@ -97,27 +97,31 @@ export async function buildApp(options: AppOptions) {
   app.addHook('preValidation', async request => {
     if (request.method !== 'OPTIONS' && request.url.startsWith('/api/v1/auth/')) validate(emptyQuery, request.query);
     if (request.method === 'POST' && request.url.split('?')[0] !== '/api/v1/auth/logout'
+      && !(request.routeOptions.url === '/api/v1/bookings/:bookingId/cancel' && request.body === undefined)
       && request.headers['content-type']?.split(';')[0].trim().toLowerCase() !== 'application/json') {
       throw new ApiError(415, 'UNSUPPORTED_MEDIA_TYPE', 'รองรับเฉพาะ application/json');
     }
   });
   app.post('/api/v1/auth/register', async (request, reply) => {
     const input = validate(registerSchema, request.body);
-    return reply.code(201).send({ data: { user: await auth.register(input) } });
+    return reply.code(201).send({ data: { user: publicUser(await auth.register(input)) } });
   });
   app.post('/api/v1/auth/login', async (request, reply) => {
     const input = validate(loginSchema, request.body);
     await limiter.check('login-email', input.email, 10, 900000);
     const result = await auth.login(input);
     reply.setCookie(cookieName, result.token, { ...cookieOptions, maxAge: 604800, expires: result.expiresAt });
-    return { data: { user: result.user, sessionExpiresAt: result.expiresAt.toISOString() } };
+    return { data: { user: publicUser(result.user), sessionExpiresAt: result.expiresAt.toISOString() } };
   });
   app.post('/api/v1/auth/logout', async (request, reply) => {
     if (request.body !== undefined) throw new ApiError(422, 'VALIDATION_ERROR', 'Logout ไม่รับ request body');
     await auth.logout(request.cookies[cookieName]);
     reply.clearCookie(cookieName, cookieOptions).code(204).send();
   });
-  app.get('/api/v1/auth/me', async request => ({ data: await sessionFor(request) }));
+  app.get('/api/v1/auth/me', async request => {
+    const session = await sessionFor(request);
+    return { data: {user:publicUser(session.user),sessionExpiresAt:session.sessionExpiresAt} };
+  });
   if (options.calendarRepository) {
     const calendar = new CalendarService(options.calendarRepository, clock, options.bookingRules);
     const requireLogin = async (request: import('fastify').FastifyRequest) => { await sessionFor(request); };
@@ -133,6 +137,20 @@ export async function buildApp(options: AppOptions) {
   }
   if (options.bookingRepository) {
     const booking = new BookingService(options.bookingRepository, clock, options.bookingRules);
+    app.post('/api/v1/bookings/:bookingId/cancel', async request => {
+      const session = await sessionFor(request);
+      await limiter.check('cancel-user',session.user.id,10,60000);
+      validate(emptyQuery,request.query);
+      const { bookingId } = validate(bookingParams,request.params);
+      if (request.body !== undefined) throw new ApiError(422,'VALIDATION_ERROR','การยกเลิกไม่รับ request body');
+      return {data:{booking:publicBooking(await booking.cancel(session.user.id,bookingId))}};
+    });
+    app.get('/api/v1/bookings', async request => {
+      const session = await sessionFor(request);
+      const { limit, cursor } = validate(bookingListQuery, request.query);
+      const page = await options.bookingRepository!.listForUser(session.user.id, limit, cursor);
+      return { data: { bookings:page.bookings.map(item => ({...publicBooking(item),roomName:item.roomName})),nextCursor:page.nextCursor } };
+    });
     app.post('/api/v1/bookings', async (request, reply) => {
       const session = await sessionFor(request);
       await limiter.check('booking-user', session.user.id, 10, 60000);
@@ -140,7 +158,7 @@ export async function buildApp(options: AppOptions) {
       const input = validate(createBookingSchema, request.body);
       const rawKey = request.headers['idempotency-key'];
       const key = rawKey === undefined ? undefined : validate(requestKeySchema, rawKey);
-      return reply.code(201).send({ data: { booking: await booking.create(session.user.id, input, key) } });
+      return reply.code(201).send({ data: { booking: publicBooking(await booking.create(session.user.id, input, key)) } });
     });
     app.get('/api/v1/bookings/requests/:requestKey', async request => {
       const session = await sessionFor(request);
@@ -148,7 +166,7 @@ export async function buildApp(options: AppOptions) {
       const { requestKey } = validate(requestKeyParams, request.params);
       const result = await options.bookingRepository!.findByRequest(session.user.id, requestKey);
       if (!result) throw new ApiError(404, 'BOOKING_REQUEST_NOT_FOUND', 'ยังไม่พบผลการจองสำหรับคำขอนี้');
-      return { data: { booking: result } };
+      return { data: { booking: publicBooking(result) } };
     });
   }
   return app;

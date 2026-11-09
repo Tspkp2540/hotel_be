@@ -11,3 +11,8 @@ export const createBookingSchema = z.strictObject({
 export type CreateBooking = z.infer<typeof createBookingSchema>;
 export const requestKeySchema = z.uuid().transform(value => value.toLowerCase());
 export const requestKeyParams = z.strictObject({ requestKey: requestKeySchema });
+export const bookingParams = z.strictObject({ bookingId: requestKeySchema });
+export const bookingListQuery = z.strictObject({
+  limit: z.string().regex(/^(?:[1-9]|[1-4][0-9]|50)$/).default('20').transform(Number),
+  cursor: requestKeySchema.optional(),
+});
